@@ -285,11 +285,14 @@ describe("Plannotator bridge", () => {
 });
 
 describe("taskflow Extension", () => {
-	it("registers only taskflow_plan_review with the required input schema", async () => {
+	it("registers the review tools with the required Plan input schema", async () => {
 		const events = createEventBus();
 		const receive = provider(events);
 		const { tool, register } = registerTool(events);
-		expect(register).toHaveBeenCalledTimes(1);
+		expect(register.mock.calls.map(([tool]) => tool.name)).toEqual([
+			"taskflow_plan_review",
+			"taskflow_code_review",
+		]);
 		expect(tool.name).toBe("taskflow_plan_review");
 		expect(Check(tool.parameters, plan)).toBe(true);
 		expect(Check(tool.parameters, { planContent: plan.planContent })).toBe(
