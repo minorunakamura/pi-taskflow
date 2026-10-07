@@ -34,9 +34,11 @@ Root Agent が名前や Planning 全体の種別ではなく、現在の Work It
 Planning が Feature でも、各 Work Item が Feature とは限らない。分類だけのために追加の LLM 呼び出しを行わない。
 
 - 新しい動作、動作変更は [Feature Playbook](references/playbooks/feature.md) を読む。
-- 期待と異なる動作の修正は Bug Fix、動作を変えない構造変更は Refactoring、計測できる性能問題は Performance として識別する。
+- 期待と異なる動作の修正は [Bug Fix Playbook](references/playbooks/bug-fix.md) を読む。
+- 動作を変えない構造変更は [Refactoring Playbook](references/playbooks/refactoring.md) を読む。
+- 計測できる性能問題は [Performance Playbook](references/playbooks/performance.md) を読む。
 - `hotfix` は原則 Bug Fix。`chore` は名前ではなく内容から判断する。
-- この初期フローで提供する専門 Playbook は Feature のみ。他の専門手順は別途追加されるため、ここで再実装しない。それらや専門種別に当てはまらない作業は、Approved Plan の検証方法に従って共通手順を使う。`generic` Playbook は作らない。
+- 専門種別に当てはまらない作業は、Approved Plan の検証方法に従って共通手順を使う。`generic` Playbook は作らない。
 
 Skill 内の参照パスはこの Skill のディレクトリを基準に解決する。
 利用する Skill は実行前に読み、Agents / tools は公開 `pi-subagents` API に従って使う。
