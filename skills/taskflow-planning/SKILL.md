@@ -1,6 +1,6 @@
 ---
 name: taskflow-planning
-description: Plan development work in Pi, especially new features and behavior changes. Investigate facts, resolve user decisions, obtain explicit Plannotator approval, and publish reviewed Work Items through to-tickets. Stop before Implementation.
+description: Plan development work in Pi, including features, bug fixes, refactoring, and performance improvements. Investigate facts, resolve user decisions, obtain explicit Plannotator approval, and publish reviewed Work Items through to-tickets. Stop before Implementation.
 ---
 
 # Taskflow Planning
@@ -15,7 +15,10 @@ Root Agent が全体の進行、Playbook の選択、ユーザーとの対話、
 依頼の名前ではなく実際の作業内容から Root Agent が Playbook を選ぶ。分類だけのために追加の LLM 呼び出しを行わない。
 
 - 新しい動作、動作変更は [Feature Playbook](references/playbooks/feature.md) を読み、共通手順の調査・設計・検証方法を補う。
-- この Skill に同梱する専門 Playbook は現在 `feature` のみ。他の専門 Playbook は別途追加する。必要な専門 Playbook が未導入なら、その不足を報告し、存在しないファイルを読もうとしない。
+- 期待と異なる動作の修正は [Bug Fix Playbook](references/playbooks/bug-fix.md) を読む。
+- 動作を変えない構造変更は [Refactoring Playbook](references/playbooks/refactoring.md) を読む。
+- 計測できる性能問題は [Performance Playbook](references/playbooks/performance.md) を読む。
+- `hotfix` は原則 Bug Fix として扱い、緊急であっても原因確認や検証を省略しない。`chore` は名前ではなく実際の作業内容で分類する。
 - どの専門 Playbook にも当てはまらない依頼は、この共通手順をそのまま使う。`generic` Playbook は作らない。
 
 参照ファイルの相対パスは、この Skill のディレクトリを基準に解決する。
