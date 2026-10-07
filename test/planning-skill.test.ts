@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { loadSkillsFromDir } from "@earendil-works/pi-coding-agent";
 import { expect, it } from "vitest";
 
-it("loads the Planning Skill through Pi and resolves its Feature Playbook", () => {
+it("loads the Planning Skill through Pi and resolves all Planning Playbooks", () => {
 	const dir = fileURLToPath(
 		new URL("../skills/taskflow-planning/", import.meta.url),
 	);
@@ -21,8 +21,25 @@ it("loads the Planning Skill through Pi and resolves its Feature Playbook", () =
 	expect(skill.description).toBeTruthy();
 
 	const content = readFileSync(skill.filePath, "utf8");
-	const reference = content.match(/\]\((references\/playbooks\/feature\.md)\)/);
-	expect(reference).not.toBeNull();
-	const playbook = readFileSync(join(skill.baseDir, reference![1]), "utf8");
-	expect(playbook.startsWith("# Feature Planning Playbook\n")).toBe(true);
+	const references = [
+		...content.matchAll(/\]\((references\/playbooks\/[\w-]+\.md)\)/g),
+	].map((match) => match[1]);
+	expect(references).toEqual([
+		"references/playbooks/feature.md",
+		"references/playbooks/bug-fix.md",
+		"references/playbooks/refactoring.md",
+		"references/playbooks/performance.md",
+	]);
+	for (const [index, title] of [
+		"Feature",
+		"Bug Fix",
+		"Refactoring",
+		"Performance",
+	].entries()) {
+		const playbook = readFileSync(
+			join(skill.baseDir, references[index]),
+			"utf8",
+		);
+		expect(playbook.startsWith(`# ${title} Planning Playbook\n`)).toBe(true);
+	}
 });
