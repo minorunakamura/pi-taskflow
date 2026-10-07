@@ -47,7 +47,18 @@ Root Agent が全体の進行、Playbook の選択、ユーザーとの対話、
 ### 外部調査
 
 ライブラリ、API、バージョン差、標準仕様などの外部情報が必要な場合だけ、`pi-ketch.researcher` を起動する。
-調査する問い、対象バージョン、必要な根拠を渡し、Planning に必要な結論を利用する。
+調査する問い、対象バージョン、必要な根拠を渡す。公開 `subagent` tool から最小の呼び出しで起動できる。
+
+```js
+subagent({
+  agent: "pi-ketch.researcher",
+  task: "調査する問い、対象バージョン、必要な根拠"
+})
+```
+
+通常は package の `defaultContext: fresh` に任せ、Planning の会話全文を渡さない。
+結果を受け取ってから Root Agent が根拠と不確実性を評価し、必要な結論と出典だけを Plan に反映する。
+調査途中の tool 出力・会話全文を正式な成果物として保存したり、Implementation に引き継いだりしない。
 `pi-subagents` の built-in `researcher` で代用しない。
 researcher package が提供する fresh context、tools、child Extension を使う。
 独自 Researcher、Ketch tool 一覧、Extension path、`subagentOnlyExtensions` をこの workflow に定義しない。
