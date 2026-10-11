@@ -17,7 +17,7 @@ it("loads the Implementation Skill through Pi and resolves all Implementation Pl
   expect(skills).toHaveLength(1);
   const skill = skills[0];
   expect(skill.name).toBe("taskflow-implementation");
-  expect(skill.disableModelInvocation).toBe(false);
+  expect(skill.disableModelInvocation).toBe(true);
   expect(skill.description).toBeTruthy();
 
   const content = readFileSync(skill.filePath, "utf8");

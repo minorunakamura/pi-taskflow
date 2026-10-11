@@ -2,11 +2,12 @@
 
 ## 1. 実装方針
 
-実装の中心は次の3つとする。
+実装の中心は次の4つとする。
 
 1. `taskflow-planning` Skill
-2. `taskflow-implementation` Skill
-3. Plannotator 連携と設定読み込みのための小さな Extension
+2. `taskflow-to-ticket` Skill
+3. `taskflow-implementation` Skill
+4. Plannotator 連携と設定読み込みのための小さな Extension
 
 Workflow の進行そのものを TypeScript の状態機械として実装しない。
 
@@ -32,14 +33,24 @@ pi-taskflow/
 │   │           ├── refactoring.md
 │   │           └── performance.md
 │   │
-│   └── taskflow-implementation/
+│   ├── taskflow-implementation/
+│   │   ├── SKILL.md
+│   │   └── references/
+│   │       └── playbooks/
+│   │           ├── feature.md
+│   │           ├── bug-fix.md
+│   │           ├── refactoring.md
+│   │           └── performance.md
+│   │
+│   └── taskflow-to-ticket/
 │       ├── SKILL.md
+│       ├── LICENSE
 │       └── references/
-│           └── playbooks/
-│               ├── feature.md
-│               ├── bug-fix.md
-│               ├── refactoring.md
-│               └── performance.md
+│           ├── origin.md
+│           └── templates/
+│               ├── github.md
+│               ├── local.md
+│               └── ticket.md
 │
 ├── extensions/
 │   └── taskflow.ts
@@ -50,7 +61,10 @@ pi-taskflow/
 │
 └── test/
     ├── settings.test.ts
-    └── plannotator.test.ts
+    ├── plannotator.test.ts
+    ├── planning-skill.test.ts
+    ├── implementation-skill.test.ts
+    └── to-ticket-skill.test.ts
 ```
 
 Planning と Implementation の両方に Playbook を持つ。
@@ -126,7 +140,6 @@ grilling
 grill-with-docs
 domain-modeling
 tdd
-to-tickets
 ```
 
 `grill-me` は `grilling` の入口なので、別工程として扱わない。
@@ -152,9 +165,9 @@ to-tickets
 10. Plan を作成する
 11. taskflow_plan_review を呼ぶ
 12. Approved Plan を保存する
-13. to-tickets を使って Work Item に分ける
-14. Work Item の分割をユーザーに確認する
-15. Work Item を保存・公開する
+13. 同梱 taskflow-to-ticket に正式な Plan のパス・全文・追加制約を渡す
+14. ticket Skill が tracker 設定・分割・保存公開を個別にユーザーに確認する
+15. 承認後に Work Item を保存・公開する
 16. Planning を終了する
 ```
 
@@ -442,20 +455,21 @@ docs/plans/<slug>.md
 
 ---
 
-## 16. to-tickets
+## 16. taskflow-to-ticket
 
-Approved Plan を `to-tickets` に渡す。
+同梱の `skills/taskflow-to-ticket/SKILL.md` を明示的に読み、正式に保存した Approved Plan のパス・全文・Planning の追加制約を渡す。Planning / Feature Playbook からの Markdown リンクは各参照元を基準に解決する。旧 `to-tickets` / setup Skill は不要。
 
-次の処理は `to-tickets` に任せる。
+次の処理は prompt-driven `taskflow-to-ticket` に任せる。
 
-- Work Item への分割
-- 依存関係の整理
-- ユーザーへの分割確認
-- configured tracker への保存・公開
+- プロジェクトルートの `docs/agents/issue-tracker.md` の直接読み取り・再利用と必要最小限の準備
+- Work Item への分割と実際の blocker の整理
+- 設定、分割、最終本文・保存先の保存・公開の個別承認（Plan 承認を流用しない）
+- GitHub Issues / Local Markdown への保存・公開と readback
 
-`pi-taskflow` 側で tracker 抽象化や ticket 分割処理を再実装しない。
+Extension で tracker API、抽象化、ticket 分割処理、永続 workflow state を再実装しない。AGENTS.md / CLAUDE.md は設定のために作成・変更しない。
 
-各 Work Item から Approved Plan を参照できるようにする。
+各 Work Item から正式な Approved Plan を参照できるようにする。Local の相対リンクは ticket の場所から解決する。
+保存・公開後は参照と承認を確認して停止し、Implementation、Worker、merge / release / deploy を自動開始しない。
 
 ---
 
@@ -466,7 +480,7 @@ Approved Plan を `to-tickets` に渡す。
 基本手順:
 
 ```text
-1. Work Item を取得する
+1. issue-tracker.md を直接確認し、対象・取得ルールと明示参照の整合を確認して Work Item を取得する
 2. Approved Plan を取得する
 3. 開始条件を確認する
 4. Work Item の内容に合う Implementation Playbook を選ぶ
@@ -577,15 +591,22 @@ GitHub Issue
 local ticket path
 ```
 
-Work Item から Approved Plan を参照する。
+Work Item 取得前にプロジェクトルートの `docs/agents/issue-tracker.md` を直接読み、対象 tracker と取得ルールを確認する。AGENTS.md / CLAUDE.md やそこからのリンクに依存しない。
+既存設定の読み取り失敗を未設定扱いにせず `BLOCKED` とする。設定と明示された参照が矛盾する場合は、取得先・設定を変更せずユーザーに確認する。
+設定がなくても明示 URL / local path と既存の公開 API で取得先が確定する入力は維持する。番号だけで対象が曖昧なら `BLOCKED`。Implementation では tracker のセットアップ・設定作成・更新を行わない。
 
-次の場合は実装を開始しない。
+Work Item から承認済みの正式な Approved Plan を参照する。local ticket の相対リンクは ticket の場所から解決する。
 
+次の場合はコード変更・Worker 起動前に `BLOCKED` として停止する。
+
+- 設定を読めない、設定と明示参照が矛盾する、または取得先が曖昧
 - Work Item が取得できない
-- Approved Plan が取得できない
-- 依存 Work Item が未完了
-- 完了条件が理解できない
+- 正式な Approved Plan が取得・確認できない
+- 実際の blocker が未完了または状態不明。依存の本文と完了理由・結果を確認し、GitHub の close だけでは完了としない
+- 完了条件と検証方法が理解できない
 - 未決定のユーザー判断が残っている
+
+`ready-for-agent` 等の label だけで開始を許可しない。
 
 Plan の前提や設計を変える必要がある場合は `REPLAN_REQUIRED` とする。
 
@@ -832,7 +853,7 @@ Project trust を尊重する。
 
 Agent の model や thinking level は `subagents` 側で設定する。
 
-Work Item の保存先は `to-tickets` 側の設定を使う。
+Work Item の保存先は `taskflow-to-ticket` が準備するプロジェクトルートの `docs/agents/issue-tracker.md` を使う。Implementation は直接読み取り、作成・更新しない。
 
 ---
 
@@ -962,7 +983,8 @@ REPLAN_REQUIRED
 Plannotator Code Review 有効
 ```
 
-`to-tickets` 自体の tracker 機能は `pi-taskflow` で再実装・再テストしない。
+ticket Skill の Pi loader・同梱参照の解決テストと、実 Root・人間承認による設定・分割・保存公開・停止の smoke を分ける。Planning 接続と fresh Implementation の設定引継ぎ、未完了 blocker、設定矛盾、設定なし明示 local path も隔離 fixture で観測する。文章一致や loader 成功を Agent の実行遵守の証明にしない。GitHub 書き込みは明示的な許可がある検証先だけで行う。
+Extension に tracker 機能を再実装したり、全 workflow を強制する状態機械を追加したりしない。
 
 ---
 

@@ -25,5 +25,6 @@
 - TDD の使用有無と、使用する場合の公開インターフェースを決める。テストが適さない場合は実行可能な代替確認を決める。
 - 別の設計視点が有用な場合だけ built-in `oracle` に助言を求め、Root Agent が採否を判断する。
 
-調査や判断が残っている場合は先に解決する。Root Agent が共通手順で最終 Plan を作成し、必須の `taskflow_plan_review`、Approved Plan の保存、`to-tickets` を進める。
+調査や判断が残っている場合は先に解決する。Root Agent が共通手順で最終 Plan を作成し、必須の `taskflow_plan_review` と Approved Plan の正式保存を行う。
+同梱の [taskflow-to-ticket Skill](../../../taskflow-to-ticket/SKILL.md) を読み、正式な Plan のパスと全文、共通手順の追加制約を渡す。tracker の準備は ticket Skill に任せ、Plan・設定・分割・保存公開の承認を流用しない。
 Work Items がユーザー確認済みかつ保存・公開済みになったら終了し、Implementation へ続けない。
