@@ -1,13 +1,13 @@
 # Feature Implementation smoke 確認
 
-Issue #6 の共通 Implementation フローと Feature Playbook を、新しい実際の Root セッションで最後まで確認する。
+共通 Implementation フローと Feature Playbook、および Issue #17 の tracker 設定引継ぎを、新しい実際の Root セッションで確認する。
 `pnpm test` の `implementation-skill.test.ts` は Pi の Skill 読み込みと Feature 参照だけを確認する。文章の一致や模擬 Agent / approval の応答を E2E 成功の証拠にしない。
 
 ## 前提と隔離
 
 - Pi の model、公開 `pi-subagents` の built-in `worker` / `reviewer`、`ponytail-review` Skill、`pi-taskflow` Extension を利用可能にする。
 - [Feature Planning smoke](planning-feature.md) で実際にユーザーが承認した Approved Plan と、分割を別途確認した local Work Item を使う。未承認の fixture Plan を Approved Plan と呼ばない。
-- Planning の fixture から `greet.mjs`、`package.json`、正式な Plan、Work Item だけをリポジトリ外の別の一時ディレクトリへコピーする。Plan / ticket の相対パスを維持する。Planning の sessions、会話、Scout 出力、tool 履歴はコピーしない。
+- Planning の fixture から `greet.mjs`、`package.json`、正式な Plan、Work Item、`docs/agents/issue-tracker.md` だけをリポジトリ外の別の一時ディレクトリへコピーする。Plan / ticket の相対パスを維持する。AGENTS.md / CLAUDE.md、Planning の sessions、会話、Scout 出力、tool 履歴はコピーしない。
 - 初期コードは `console.log("Hello, world!");`。両方の CLI がまだ `Hello, world!` を出力することを確認し、fixture のみを Git の baseline として記録する。
 - Code Review は設定なしのデフォルト無効で確認する。実際の `taskflow_code_review` が `skipped` を返す必要がある。global 設定は変更しない。
 
@@ -15,28 +15,32 @@ Issue #6 の共通 Implementation フローと Feature Playbook を、新しい�
 TASKFLOW_REPO=/absolute/path/to/pi-taskflow
 PLANNING_FIXTURE=/path/to/completed-planning-fixture
 SMOKE_DIR=$(mktemp -d)
-mkdir -p "$SMOKE_DIR/docs/plans" "$SMOKE_DIR/.scratch/greet-uppercase/issues"
+mkdir -p "$SMOKE_DIR/docs/plans" "$SMOKE_DIR/docs/agents" "$SMOKE_DIR/.scratch/greet-uppercase/issues"
 cp "$PLANNING_FIXTURE/greet.mjs" "$PLANNING_FIXTURE/package.json" "$SMOKE_DIR/"
 cp "$PLANNING_FIXTURE/docs/plans/greet-uppercase.md" "$SMOKE_DIR/docs/plans/"
-cp "$PLANNING_FIXTURE/.scratch/greet-uppercase/issues/01-uppercase.md" "$SMOKE_DIR/.scratch/greet-uppercase/issues/"
+cp "$PLANNING_FIXTURE/docs/agents/issue-tracker.md" "$SMOKE_DIR/docs/agents/"
+cp "$PLANNING_FIXTURE/.scratch/greet-uppercase/issues/"*.md "$SMOKE_DIR/.scratch/greet-uppercase/issues/"
 cd "$SMOKE_DIR"
 git init -q
 git add greet.mjs package.json docs .scratch
 git -c commit.gpgsign=false -c user.name=TaskflowSmoke -c user.email=smoke@example.invalid commit -qm baseline
 node greet.mjs
 node greet.mjs --uppercase
+TICKET=$(find .scratch/greet-uppercase/issues -type f -name '*.md' | sort | head -n 1)
+shasum -a 256 docs/agents/issue-tracker.md > tracker-before.sha256
 pi --mode json --approve -e "$TASKFLOW_REPO" \
   --skill "$TASKFLOW_REPO/skills/taskflow-implementation" \
   --session-dir "$SMOKE_DIR/sessions" \
-  '/skill:taskflow-implementation .scratch/greet-uppercase/issues/01-uppercase.md' \
+  "/skill:taskflow-implementation $TICKET" \
   > events.jsonl 2> run.stderr
 ```
 
-`--continue` / `--resume` / `--fork` は使わない。Code Review を有効にした試行ではユーザーが参加できる TUI または RPC を使う。print / JSON の UI 制約は Planning smoke を参照する。
+`--continue` / `--resume` / `--fork` は使わない。command に渡す ticket は実際の生成物から選び、依存なし・判断確定済みの Feature Work Item であることを実行前に読む。設定が絶対パスを含むなど、別 fixture へのコピーと矛盾する場合は黙って更新せず、ticket Skill で変更内容を実ユーザーに確認してから準備し直す。
+Code Review を有効にした試行や、ユーザー確認待ちになる停止試行では TUI または RPC を使う。print / JSON の UI 制約は Planning smoke を参照する。
 
 ## 観測と合格条件
 
-1. Root が Skill、現在の Work Item、正式な Approved Plan を取得し、開始条件を確認する。この Work Item は依存なし・判断確定済み。Planning の会話や保存された Scout 出力を入力にしない。
+1. Root が Work Item 取得前に fixture root の `docs/agents/issue-tracker.md` を直接 read し、Local の対象・取得ルールを確認する。その後 Work Item、正式な Approved Plan を取得し、開始条件を確認する。この Work Item は依存なし・判断確定済み。AGENTS.md / CLAUDE.md や Planning の会話・Scout 出力に依存しない。
 2. Root が実際の Work Item の内容から Feature Playbook を読み、現在の `greet.mjs` と `package.json` を直接確認する。分類だけの子 Agent を使わない。小規模なので Scout は省略してよい。
 3. built-in `worker` が fresh context で起動される。依頼には今回の Work Item、Plan の関係部分、完了条件、制約・対象外、正式なチェック・直接検証方法、現在のコードの事実がある。`ponytail` を明示的に追加しない。TDD は Plan が指定していないため追加しない。
 4. Worker が `greet.mjs` のみを最小限変更し、Plan にない仕様変更、依存追加、merge / release / deploy を行わない。Root は実際の差分を確認する。
@@ -48,6 +52,7 @@ pi --mode json --approve -e "$TASKFLOW_REPO" \
 10. 最終回答が `READY_FOR_MERGE` を明示し、変更、チェック、直接検証、各完了条件、指摘の採否、リスクを報告する。Git の差分と CLI を smoke の実行者も独立して確認する。実際の merge、release、deploy は行わない。
 
 Skill / Playbook は確率的な Agent の手順であり、読み込みテストだけでは実行遵守を保証しない。実際の tool 履歴・child の launch context・差分・コマンド出力・最終回答を根拠にする。
+終了後に `shasum -a 256 -c tracker-before.sha256` と `git diff --exit-code HEAD -- docs .scratch` で設定・Plan・ticket の不変を確認する。Implementation が設定を作成・更新していないことと、AGENTS.md / CLAUDE.md の不存在も確認する。
 fixture の `.pi/subagents`、sessions、ログは一時領域の runtime artifact であり、本リポジトリに移さない。
 
 ## 停止と承認 gate の追加確認
@@ -61,10 +66,50 @@ fixture の `.pi/subagents`、sessions、ログは一時領域の runtime artifa
 
 Code Review の設定解決と Approve / Reject / Cancel / unavailable / error の tool contract は既存の `settings.test.ts`、`code-review.test.ts`、`plannotator.test.ts` でも確認する。これは有効な gate の人間参加 E2E とは区別する。
 
+## tracker 引継ぎと開始 gate の再現手順（Issue #17）
+
+成功シナリオとは別に、**各 case ごとに** Planning の未実装 fixture から新しい隔離ディレクトリを作る。以下で設定・Plan・ticket・初期コードのみをコピーし、下表の該当 case の準備を行う。ログは fixture 外に置く。
+
+```sh
+CASE_DIR=$(mktemp -d)
+CASE_LOG_DIR=$(mktemp -d)
+mkdir -p "$CASE_DIR/docs" "$CASE_DIR/.scratch"
+cp "$PLANNING_FIXTURE/greet.mjs" "$PLANNING_FIXTURE/package.json" "$CASE_DIR/"
+cp -R "$PLANNING_FIXTURE/docs/plans" "$PLANNING_FIXTURE/docs/agents" "$CASE_DIR/docs/"
+cp -R "$PLANNING_FIXTURE/.scratch/greet-uppercase" "$CASE_DIR/.scratch/"
+cd "$CASE_DIR"
+TICKET=$(find .scratch/greet-uppercase/issues -type f -name '*.md' | sort | head -n 1)
+```
+
+この入力は停止 gate 用のテスト変更であり、チケット化成功の証拠にしない。正式 Plan とコードは変更しない。以下の準備を行った**後**、fixture の baseline を記録する。`unreadable-config` の権限変更だけは baseline 記録後に行う。
+
+| case | 準備・入力 | 必須の観測 |
+| --- | --- | --- |
+| `incomplete-blocker` | ticket と同じディレクトリに `00-blocker.md` を作り、`Status: OPEN`、保存契約など開始に必須の成果、未達の完了条件を明記する。対象 ticket の `Blocked by` をこの実ファイルへの相対リンクに変更し、未完了では開始できない理由を記す。入力は `$TICKET` | 設定、ticket、正式 Plan、blocker の実本文・状態を取得して `BLOCKED`。label があっても開始しない。単なる関連リンク扱いや close の推測で回避しない |
+| `tracker-conflict` | Local 設定をそのまま保持し、入力だけ `https://github.com/minorunakamura/pi-taskflow/issues/17` にする。これは矛盾の検証用参照であり、Issue の実装・更新許可ではない | 設定と明示 URL の不一致を検出し、`BLOCKED` とユーザー確認待ち。勝手な GitHub 取得先への切替や設定変更なし |
+| `no-config-local-path` | `rm docs/agents/issue-tracker.md`。依存なしの元の `$TICKET` を入力する | 不存在を確認した後、local path と ticket 基準の Plan リンクで取得できる。設定を作らず開始 gate を通過する。取得確認後にユーザーが停止を依頼する read-only 試行でもよいが、全 Implementation 成功とは区別する |
+| `no-config-number` | 設定を削除し、入力を `17` のみにする。remote のない隔離 fixture で実行する | 対象 repo / tracker を推測せず `BLOCKED`。設定・ticket の新規作成なし |
+| `unreadable-config` | baseline 記録後、コピーした既存設定に `chmod 000 docs/agents/issue-tracker.md`。非特権ユーザーで実行し、実際に read が権限エラーとなる環境でのみ観測する。入力は `$TICKET` | 不存在ではなく read 失敗として `BLOCKED`。明示 path があっても未設定扱いで進めない。実行後に fixture のみ `chmod 600` で戻す |
+
+```sh
+cd "$CASE_DIR"
+git init -q
+git add greet.mjs package.json docs .scratch
+git -c commit.gpgsign=false -c user.name=TaskflowSmoke -c user.email=smoke@example.invalid commit -qm baseline
+pi --approve -e "$TASKFLOW_REPO" \
+  --skill "$TASKFLOW_REPO/skills/taskflow-implementation" \
+  --session-dir "$CASE_LOG_DIR"
+```
+
+各回、新しい TUI / RPC Root に `/skill:taskflow-implementation <上表の入力>` を渡す。前のセッションを resume せず、期待状態名や模擬 tool 応答を prompt に含めない。`no-config-local-path` の取得確認だけを行う場合は、実装前に一旦停止して取得結果を報告するよう依頼する。
+実 tool 履歴で**Work Item 取得より前の設定直接 read**を確認し、最終回答、停止理由・再開条件、取得できた Plan / blocker を記録する。停止ケースでは Worker / 子 Agent 起動と edit / write がなく、`git diff --exit-code HEAD` が成功することを確認する。新規の設定・AGENTS.md / CLAUDE.md もなく、runtime artifact 以外の予定外ファイルがないことを一覧確認する。read エラーが再現できなければ `unreadable-config` は未確認と記録する。
+
 ## 結果の報告
 
-日時、Pi / model、fixture とログ、Worker と両 Reviewer の fresh context、check と直接検証、Code Review 応答、最終状態、未確認の分岐を記録する。
+日時、Pi / model、fixture とログ、Work Item 取得前の設定 read、設定・Plan・ticket の不変確認、各開始 gate の状態、Worker と両 Reviewer の fresh context、check と直接検証、Code Review 応答、最終状態、未確認の分岐を記録する。
 未実行や途中停止なら Issue #6 の代表 Feature E2E 条件を達成したと報告しない。
+
+以下は Issue #6 の当時の結果であり、新しい設定直接参照の成功記録ではない。
 
 ### 2026-10-08 の実行結果
 
@@ -193,3 +238,29 @@ Code Review は fixture の `.pi/settings.json` に `taskflow.plannotatorCodeRev
 - 広い変更の Scout、Worker 内での Plan 変更発見、設計変更を要求する Review 指摘は手順確認のみ。全 workflow 分岐の網羅的 E2E を行ったとは報告しない。
 - Code Review 有効時の実 Approve 経路は追加確認済み。人間による Reject / Cancel の workflow E2E は今回未実行で、既存 tool tests の確認と区別する。追加試行は全4指摘を採用したため、不採用 findings のある実例も未確認。
 - Skill は Agent が読む手順であり、TypeScript の強制的な状態機械ではない。これは承認済み設計に従う制約であり、追加の状態管理や承認 infrastructure は導入していない。
+
+### 2026-10-11 JST の実行結果（Issue #17・tracker 引継ぎ）
+
+- Pi `1.1.0`、model `openai/gpt-6.1-sol`、公開 RPC / subagent protocol を使用。基点は `/tmp/pi-taskflow-17-smoke.jsRS7z`。新版 Planning で承認・保存した設定、正式 Plan、ticket と初期 `greet.mjs` / `package.json` だけを `implementation-retry/` にコピーし、会話・sessions・Scout 出力・AGENTS.md / CLAUDE.md は引き継いでいない。
+- 別の新しい Root（session `01a129b8-7ab7-70c4-a34c-16bff179ab55`、initial `messageCount: 0`）の最初の tool は tracker 設定の直接 read。その後 ticket と正式 Plan を取得し、実装開始条件を確認した。
+- built-in Worker と独立した Correctness / Ponytail の両 Reviewer が完了。workflow run `cba844fd-e56c-4163-a1ae-c9893782e6a8` の `workflow-receipt.json`（`/var/folders/04/cs5vwntd34d_fdbtdczbxg000000gn/T/pi-subagents-uid-501/async-subagent-runs/` 配下）で全3 child の requested / resolved context が `fresh`、workflow / child が完了であることを確認した。Ponytail の `ponytail-review` Skill 指定もログで確認した。
+- Reviewer の shell 権限制約により、Root が実測した diff / CLI 証跡を `subagent_supervisor` 経由で渡した。Reviewer は code / Plan を直接 read して評価しており、Reviewer 自身の CLI 実行ではない。実 `taskflow_code_review` は `status: "skipped", approved: false`、最終状態は `READY_FOR_MERGE`。
+- 実行者 Root も独立して `npm test`、CLI 通常 / `--uppercase` / 未知引数単独・併用、`git diff --check` を再確認した。CLI は期待 stdout と末尾改行まで完全一致、stderr 空、exit code 0。変更は `greet.mjs` のみで、設定・Plan・ticket・`package.json` の hash は不変、AGENTS.md / CLAUDE.md は不存在。merge / release / deploy は行っていない。
+- 初回 `implementation/` は検証用 RPC の `--tools` に `subagent_supervisor` を入れ忘れ、Reviewer の照会に返信できず `BLOCKED`。履歴・部分 diff を保持して workflow を停止した。必要な tool を加えた別の clean fixture / fresh Root で上記 retry が成功したのであり、初回を成功に数えていない。各 RPC shutdown は exit code 0。
+
+#### tracker 取得・停止 gate の追加観測
+
+各 case は別の fresh Root（initial `messageCount: 0`）で実行し、最初に tracker 設定を直接 read した。Worker 起動・edit / write はなく、入力のコード・設定は無変更、AGENTS.md / CLAUDE.md は不存在。全 RPC shutdown は exit code 0。
+
+| case | 入力と観測結果 |
+| --- | --- |
+| `current-incomplete-blocker` | 新版 Planning 出力のコピーに `OPEN`・完了条件未達・未着手の手動 seed blocker を追加。設定 → ticket → 正式 Plan → blocker を取得し `BLOCKED`。全 input hash 不変。この入力は停止検証用であり、blocker のチケット公開 E2E ではない |
+| `current-no-config` | 新版 Planning 出力のコピーから設定だけを削除。`ENOENT` を確認し、明示 local path から ticket / 正式 Plan を取得、全開始入力条件を満たすと報告。依頼どおり実装前 checkpoint で停止し、設定を新規作成せず全 input 不変。全 Implementation 成功や `READY_FOR_MERGE` とは区別する |
+| `tracker-conflict` | Issue #16 の実承認 Local fixture の入力だけをコピー。Local 設定と Issue #17 URL の矛盾により、Issue 本文を取得せず `BLOCKED` / 確認待ち |
+| `no-config-number` | 同じ Issue #16 入力から設定を削除し、remote なしで `17` だけを指定。取得先を推測せず `BLOCKED` |
+| `unreadable-config` | 同じ Issue #16 入力の既存設定を `chmod 000`。実 read が `EACCES` となり、不存在扱いにせず `BLOCKED`。終了後 fixture のみ `chmod 600` に戻した |
+
+旧入力による `incomplete-blocker` / `no-config-local-path` 試行では Issue #16 Plan のチケット化専用制約による `REPLAN_REQUIRED` 要因も出たため、上表の `current-*` で再確認した。旧試行を新版開始 gate 通過の成功に混ぜていない。
+
+証跡は基点の `implementation-retry-logs/` と各 `<case>-logs/` の `events.jsonl` / `commands.jsonl` / `exit.json`、初回失敗は `implementation-logs/`。一時領域のため恒久保存は保証しない。実行者 Root の独立した source check は `pnpm check` 成功（6 files / 102 tests）だが、Skill loader の成功を手順遵守の証明にはしない。
+新版での completed blocker 後の実装、GitHub 書き込み・native 関係、複数 ticket の公開 E2E は未実行。Issue #16 の単体成功や過去の smoke は今回の成功に含めない。

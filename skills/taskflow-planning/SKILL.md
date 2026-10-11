@@ -1,6 +1,7 @@
 ---
 name: taskflow-planning
-description: Plan development work in Pi, including features, bug fixes, refactoring, and performance improvements. Investigate facts, resolve user decisions, obtain explicit Plannotator approval, and publish reviewed Work Items through to-tickets. Stop before Implementation.
+description: Plan development work in Pi, including features, bug fixes, refactoring, and performance improvements. Investigate facts, resolve user decisions, obtain explicit Plannotator approval, and publish reviewed Work Items through taskflow-to-ticket. Stop before Implementation.
+disable-model-invocation: true
 ---
 
 # Taskflow Planning
@@ -21,7 +22,7 @@ Root Agent が全体の進行、Playbook の選択、ユーザーとの対話、
 - `hotfix` は原則 Bug Fix として扱い、緊急であっても原因確認や検証を省略しない。`chore` は名前ではなく実際の作業内容で分類する。
 - どの専門 Playbook にも当てはまらない依頼は、この共通手順をそのまま使う。`generic` Playbook は作らない。
 
-参照ファイルの相対パスは、この Skill のディレクトリを基準に解決する。
+Markdown リンクの相対パスは、各参照元ファイルのディレクトリを基準に解決する。
 以下で利用する Skill は実行前に読み、Agent や tool は公開 API に従って使う。
 必要なコンポーネントが利用できない場合は、代替実装や独自の配線を追加せず、不足と再開条件を報告する。
 
@@ -143,18 +144,18 @@ Plannotator の内部保存だけでプロジェクトの正式な保存を済�
 保存した内容が承認された内容と一致し、参照可能であることを確認する。保存できなければここで止める。
 独自の Draft 管理、workflow state、途中経過の永続化は追加しない。
 
-## 9. to-tickets に渡す
+## 9. taskflow-to-ticket に渡す
 
-既存の `to-tickets` Skill を読み、保存した Approved Plan のパスと全文を入力にする。
-分割、依存関係、ユーザーへの分割確認、configured tracker への保存・公開は `to-tickets` に任せる。
-tracker の設定が不足していれば `to-tickets` の案内に従って準備を依頼し、独自 tracker や保存先設定を作らない。
+同梱の [taskflow-to-ticket Skill](../taskflow-to-ticket/SKILL.md) を明示的に読み、正式に保存した Approved Plan のパスと全文、および以下の追加制約を渡す。
+分割、依存関係、ユーザーへの確認、tracker への保存・公開は `taskflow-to-ticket` に任せる。
+`docs/agents/issue-tracker.md` の読み取り・再利用と必要最小限の設定準備は ticket Skill だけが担当する。Planning で設定を作成・更新したり、旧 setup Skill や独自 tracker を使ったりしない。
 
 追加の制約は次のとおり。
 
 - 各 Work Item から元の Approved Plan を参照できるよう、正式なパスまたはアクセス可能なリンクを含める。
 - 1回の新しい Implementation セッションで実装し、結果を確認できる大きさを基本とする。
 - Work Item の種別はそれぞれの内容で決まり、Feature Plan からすべて Feature が生成されるとは限らない。
-- 分割案をユーザーが確認・承認するまでは保存・公開しない。Plan の承認と分割の承認は別である。
+- Plan 承認、tracker 設定承認、分割承認、最終本文・保存先の保存・公開承認をそれぞれ別に得る。分割承認だけでは保存・公開せず、ticket Skill の個別承認手順を維持する。
 - 分割中に承認済みの要件・設計を変更する必要が出たら、勝手に拡張せず Plan Review に戻る。
 
 保存・公開後は各 Work Item の参照、Approved Plan への参照、ユーザー確認が成立したことを確認する。
@@ -165,9 +166,9 @@ tracker の設定が不足していれば `to-tickets` の案内に従って準�
 次のすべてが成立した時点で終了する。
 
 1. Approved Plan が正式な場所に保存済み。
-2. Work Item の分割をユーザーが確認・承認済み。
+2. Work Item の分割と最終本文・保存先の保存・公開をユーザーがそれぞれ確認・承認済み。
 3. Work Items が保存・公開済みで、各項目から Approved Plan を参照できる。
 
 最終回答では Approved Plan の場所と Work Items の参照を示す。
-ここで必ず停止する。`to-tickets` に続行を促す記述があっても、Implementation を自動開始しない。
+ここで必ず停止する。`taskflow-to-ticket` の保存・公開後も Implementation を自動開始しない。
 Worker 起動、production code の実装、merge、release、deploy は行わない。

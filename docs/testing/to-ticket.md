@@ -3,7 +3,7 @@
 `taskflow-to-ticket` の承認・保存・停止は、隔離した fixture の**実 Pi Root セッションと人間の応答**で確認する。
 `test/to-ticket-skill.test.ts` は Pi loader、明示呼び出し flag、同梱参照、package の `skills/` からの3 Skill 読み込みだけを検証する。文章一致、承認を模擬した tool 応答、手動作成した ticket を E2E 成功としない。
 
-この手順は単体チケット化だけを対象とする。Planning の接続、別セッションでの Implementation 開始チェック、既存設計の更新は Issue #17 の範囲であり、ここでは実行しない。
+この手順は単体チケット化だけを対象とする。Planning の接続は [Feature Planning smoke](planning-feature.md)、設定・正式 Plan・ticket・初期コードだけを引き継ぐ別セッションの開始チェックと停止 gate は [Feature Implementation smoke](implementation-feature.md) を参照する（Issue #17）。この単体 smoke の成功を接続 smoke の成功とは扱わない。
 
 ## 前提と禁止事項
 

@@ -1,6 +1,7 @@
 ---
 name: taskflow-implementation
 description: Implement a Work Item in a new Pi session using its referenced Approved Plan. Inspect current code, delegate to built-in worker, verify actual behavior, run independent Correctness and Ponytail reviews, and honor the taskflow_code_review approval gate. Report READY_FOR_MERGE, BLOCKED, REPLAN_REQUIRED, or FAILED without merging, releasing, or deploying.
+disable-model-invocation: true
 ---
 
 # Taskflow Implementation
@@ -12,7 +13,15 @@ Planning の会話履歴に依存せず、永続化された Planning Scout 出�
 ## 1. Work Item と Approved Plan を取得する
 
 主入力は Work Item の参照（GitHub Issue URL / 番号、local ticket path など）。
-プロジェクトの既存の tracker / 公開 API を使い、本文、完了条件、コメント、`Blocked by` を含む最新の内容を取得する。
+Work Item の取得前に、対象プロジェクトのルートにある `docs/agents/issue-tracker.md` を直接 read する。AGENTS.md / CLAUDE.md やそこからのリンクに依存しない。
+
+- 設定が存在する場合は対象 tracker、repo / 保存先、Work Item と依存の取得ルールを確認し、既存の公開 API で取得する。
+- ファイル不存在と読み取り権限等の失敗を区別する。既存設定を読めない場合は未設定扱いで進まず、`BLOCKED` として理由と再開条件を報告する。
+- 設定と明示された Work Item の URL / local path 等の参照が矛盾する場合は、取得先や設定を勝手に変更せず、コード変更・Worker 起動前に `BLOCKED` としてユーザーに確認する。
+- 設定がなくても、明示された URL / local path と既存の公開 API で取得先が確定する入力は維持する。番号だけで対象が曖昧なら推測せず `BLOCKED` とする。
+
+Implementation では tracker 設定の作成・更新・セットアップを行わない。不足があれば報告して停止する。
+取得先を確認した上で、本文、完了条件、コメント、`Blocked by` を含む最新の内容を取得する。
 Work Item のリンクや正式なパスから Approved Plan を解決し、関係する設計・仕様・ADR も読む。
 local ticket の相対リンクは ticket の場所を基準に解決する。Plan の参照が曖昧なら推測で別の Plan を採用しない。
 
@@ -21,7 +30,7 @@ local ticket の相対リンクは ticket の場所を基準に解決する。Pl
 - Work Item を取得できる。
 - Work Item が参照する Approved Plan を取得でき、承認済みの正式な内容として確認できる。Draft や会話中の案で代用しない。
 - `Blocked by` などに列挙された依存 Work Item をすべて取得し、実際に作業開始を妨げる依存が完了している。単なる関連リンクとは区別するが、根拠なく blocker を除外しない。GitHub の close だけで完了とせず、完了理由・結果を確認する。状態不明や未完了なら止める。
-- 今回の完了条件と検証方法を理解できる。
+- 今回の完了条件と検証方法を理解できる。`ready-for-agent` 等の label だけを開始許可の根拠にしない。
 - 未解決のユーザー判断が残っていない。事実はコードや資料から調べ、ユーザーしか決められない内容は Root が確認し、解決まで開始しない。
 
 入力不足、未完了の blocker、不明な完了条件、未決定の判断は `BLOCKED` とし、理由と再開条件を報告する。

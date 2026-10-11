@@ -1,17 +1,17 @@
 # Feature Planning smoke 確認
 
 Skill / Playbook の振る舞いは実際の Root セッションで確認する。
-`pnpm test` の `planning-skill.test.ts` は Pi の Skill 読み込みと Feature 参照を確認するだけであり、この E2E シナリオの成功を証明するものではない。
+`pnpm test` の `planning-skill.test.ts` は Pi の Skill 読み込みと Playbook / 同梱 ticket Skill への相対参照解決だけを確認し、この E2E シナリオの成功を証明するものではない。
 承認を模擬した tool 応答や手動作成した ticket を、実際の workflow の成功とみなさない。
 
 ## 前提
 
 - Pi の model が利用可能。
 - `pi-taskflow` と Plannotator Extension が読み込まれ、`taskflow_plan_review` が利用可能。今回使用した Plannotator は TUI または RPC の UI context を必要とし、print / JSON モードでは browser review を利用できない。
-- 公開 `to-tickets` Skill が読み込まれ、tracker が設定済み。この smoke では local tracker を使い、GitHub にはテスト Issue を公開しない。
-- ユーザーが Plannotator の Review と Work Item 分割の確認に参加する。
+- 同梱 `taskflow-to-ticket` Skill が利用可能。旧 `to-tickets` / setup Skill は不要。この smoke では未設定の fixture から Local Markdown を選び、GitHub にはテスト Issue を公開しない。
+- ユーザーが Plannotator の Review と、tracker 設定・Work Item 分割・最終本文の保存の各確認に参加する。
 
-`to-tickets` または tracker が未設定の場合は、公開 Skill の setup 案内に従って準備する。`pi-taskflow` に代替 tracker を追加しない。
+tracker 準備は `taskflow-to-ticket` だけが担当する。詳細な設定・再実行の観測は [To Ticket 単体 smoke](to-ticket.md) を参照する。代替 tracker や設定を Planning で作らない。
 この明確な小規模シナリオでは Scout、外部調査、Grilling、Probe、Oracle を省略できる。外部調査の実 integration 確認は Issue #5 の範囲である。
 
 ## 隔離した fixture を用意する
@@ -29,8 +29,8 @@ node greet.mjs
 pi -e "$TASKFLOW_REPO" --skill "$TASKFLOW_REPO/skills/taskflow-planning"
 ```
 
-既存の global 設定から Plannotator と `to-tickets` が利用できることを確認する。明示的な追加が必要な場合は Pi の `-e` / `--skill` を使う。
-fixture の tracker は `to-tickets` 側で local に設定し、global の tracker 設定を勝手に変更しない。
+Pi の command / startup diagnostics で同梱3 Skill が衝突なく読み込まれ、Plannotator が利用可能なことを確認する。Plannotator の明示的な追加が必要なら公開 `-e` を使い、global 設定を変更しない。
+fixture にはまだ `docs/agents/issue-tracker.md` を作らない。ticket Skill の設定提示・実ユーザー承認後にだけ Local 設定を保存する。
 
 ## 依頼
 
@@ -49,12 +49,13 @@ Approved Plan と確認済み Work Items の保存まで行い、実装は開始
 4. ユーザーが初回 Review を Reject し、「引数なしの出力が維持されることを完了条件にも明記してください」と feedback を返す。
 5. Root が修正して再度 `taskflow_plan_review` を呼ぶ。Reject された Plan から Work Items を公開しない。
 6. ユーザーが Plannotator で明示的に Approve する。Root が承認された全文を `docs/plans/<slug>.md` に保存する。
-7. Root が保存した Approved Plan を `to-tickets` に渡す。分割案と依存関係をユーザーに提示し、確認前に ticket を保存・公開しない。
-8. ユーザーが分割案を承認する。`to-tickets` が local tracker に Work Items を保存する。各項目に Approved Plan の参照がある。
+7. Root が Planning と Feature Playbook の各リンク元から同梱 `taskflow-to-ticket/SKILL.md` を解決して読む。正式に保存した Approved Plan のパス・全文・追加制約を渡す。ticket Skill が fixture root の設定を直接読み、不存在を確認して Local 設定の内容・保存先を提示し、実ユーザー承認後だけ保存・readback する。旧 setup は呼ばず、AGENTS.md / CLAUDE.md / Domain / triage 設定を作らない。
+8. ticket Skill が分割案と依存関係を提示し、ユーザーの分割承認を待つ。承認後も ticket はまだなく、最終本文・保存先を示して別の保存承認を待つ。実ユーザーの保存承認後に Local Work Items を保存し、各項目の Plan リンクを ticket の場所から解決して正式な全文を確認する。Plan・設定・分割の承認を保存許可に流用しない。
 9. 最終回答に Plan と Work Items の参照がある。Root はここで終了し、Worker や Implementation を開始しない。
 10. `greet.mjs` が最初の1行のままであることと、`node greet.mjs --uppercase` がまだ `Hello, world!` を出力することを確認する。新動作が実装されていないことも、この Planning シナリオの合格条件である。
 
-Plan の内容、保存された ticket、tool 呼び出し履歴、最終回答を直接確認する。Approval の記録と分割確認を区別する。
+Plan の内容、保存された設定と ticket、tool 呼び出し履歴、最終回答を直接確認する。Plan・設定・分割・保存の各承認記録と、その承認前に対象ファイルが未作成であることを区別して観測する。
+成功後は [Feature Implementation smoke](implementation-feature.md) の手順で設定・正式 Plan・ticket・初期コードだけを別 fixture / fresh Root に引き継ぐ。
 テスト fixture や途中結果を本リポジトリの正式な Plan / Work Item に混ぜない。
 
 ## 承認できない場合の追加確認
@@ -67,6 +68,8 @@ Plan Review が利用できない、または Plan / Work Item の保存が失�
 実行した場合は、Pi / model、利用したコンポーネント、確認日時、Plan と Work Items の参照、各合格条件の結果を報告する。
 未実行の場合は E2E 未確認と明記する。自動読み込みテストの成功だけで Issue #2 の E2E 条件を満たしたと報告しない。
 
+以下は旧 `to-tickets` を使った当時の事実であり、新版の成功記録ではない。
+
 ### 2026-10-07 の実行結果
 
 - Pi `1.0.4`、model `openai/gpt-6.1-sol`、Plannotator Extension `0.27.16` を使用。
@@ -78,3 +81,13 @@ Plan Review が利用できない、または Plan / Work Item の保存が失�
 - tool 履歴と終了イベントを確認し、ticket 保存後に Planning が停止した。`greet.mjs` と `package.json` は変更されず、引数なし・`--uppercase` ありの両方が従来の `Hello, world!` を出力することを実行確認した。Implementation は開始していない。
 - 上記の合格条件1〜10を確認済み。イベントログは fixture 内の `run-1.jsonl` / `run-2.jsonl`、入力は `rpc-commands.jsonl`。一時領域のため恒久保存は保証しない。
 - RPC は入力を閉じて終了済み。テスト用 Plan / ticket は本リポジトリに持ち込んでいない。
+
+### 2026-10-11 JST の実行結果（Issue #17・同梱 taskflow-to-ticket）
+
+- Pi `1.1.0`、model `openai/gpt-6.1-sol`、公開 RPC と実 Plannotator を使用。fixture / ログの基点は `/tmp/pi-taskflow-17-smoke.jsRS7z`、入力は `planning/`、証跡は `planning-logs/events.jsonl` / `commands.jsonl`。一時領域のため恒久保存は保証しない。
+- 新しい Root（session `01a129a6-1452-7675-aa7d-3e9a9ac8257b`、initial `messageCount: 0`）で実行。公開 `get_commands` で同梱3 Taskflow Skill が衝突なく利用可能で、旧 `to-tickets` がないことを確認した。
+- `greet.mjs` の `--uppercase` 追加を依存なしの1 ticket に計画。実ユーザーの Plannotator Approve による `status: "approved", approved: true` を確認し、正式保存した `docs/plans/greet-uppercase.md` が承認された `planContent` と完全一致した。
+- 同梱 ticket Skill と Local / ticket template を直接 read。実行者 Root の `ask_user_question` で得た実人間の回答を RPC `prompt` にそのまま中継し、設定保存・分割・最終本文保存をそれぞれ別に承認した。実行者は設定承認前に設定がなく、分割・最終本文保存の各承認前に ticket がないことを観測した。Plan 承認をこれらの承認に流用していない。
+- 設定は `docs/agents/issue-tracker.md`、ticket は `.scratch/greet-uppercase/issues/01-greet-uppercase.md` に保存。ticket は `flag: "wx"` で排他的に作成され、全文が承認された最終本文と一致し、相対リンクが正式な Plan に解決された。
+- production 相当の `greet.mjs` / `package.json` は無変更（`git diff --exit-code` 成功）。通常 / `--uppercase` の CLI はともに従来の `Hello, world!`。AGENTS.md / CLAUDE.md / Domain / triage 設定を追加せず、Planning は保存確認後に終了し、Implementation を開始していない。RPC shutdown は exit code 0。
+- この新版試行では Reject → 再提出、取消、GitHub 書き込み・native 関係、複数 ticket の公開 E2E は未実行。2026-10-07 の旧 smoke や Issue #16 の単体成功を今回の成功に含めず、上記の合格条件1〜10をすべて実行済みとはしない。

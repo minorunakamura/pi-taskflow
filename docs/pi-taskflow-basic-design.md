@@ -79,7 +79,7 @@ Plannotator Plan Review
 Approved Plan
       │
       ▼
-to-tickets
+taskflow-to-ticket
       │
       ▼
 Work Items
@@ -99,6 +99,9 @@ Implementation タスク
       │
       ▼
 taskflow-implementation Skill
+      │
+      ▼
+issue-tracker.md を直接確認
       │
       ▼
 Work Item + Approved Plan
@@ -300,7 +303,6 @@ grilling
 grill-with-docs
 domain-modeling
 tdd
-to-tickets
 ```
 
 `grill-me` は `grilling` を呼び出す入口なので、独立した工程にはしない。
@@ -623,11 +625,12 @@ docs/plans/<topic>.md
 
 ## 15. Work Item
 
-Approved Plan の承認後に Matt Pocock の `to-tickets` を使う。
+Approved Plan の承認・正式保存後に、同梱の `taskflow-to-ticket` Skill を明示的に読み、正式なパスと全文、Planning の追加制約を渡す。Planning / Feature Playbook の Markdown リンクは各参照元を基準に解決する。
 
-Work Item の分割方法、依存関係、ユーザー確認、保存先は `to-tickets` に任せる。
+Work Item の分割、依存関係、ユーザー確認、保存・公開と、`docs/agents/issue-tracker.md` の読み取り・再利用・必要最小限の準備は ticket Skill に任せる。標準の保存先は GitHub Issues / Local Markdown。旧 `to-tickets` / setup Skill には依存しない。
 
-`pi-taskflow` 側で同じ仕組みを再実装しない。
+Plan、tracker 設定、分割、最終本文・保存先の保存・公開はそれぞれ明示承認を得る。承認を別工程に流用しない。
+Extension で tracker API、抽象化、ticket 分割、永続 workflow state を再実装しない。AGENTS.md / CLAUDE.md を設定のために変更しない。
 
 追加する要件は次の2つとする。
 
@@ -647,9 +650,9 @@ Work Item の分割方法、依存関係、ユーザー確認、保存先は `to
 ```text
 Approved Plan が保存済み
 
-Work Item の分割をユーザーが確認済み
+Work Item の分割と保存・公開をユーザーがそれぞれ確認・承認済み
 
-Work Item が保存・公開済み
+Work Item が保存・公開済みで、正式な Approved Plan を参照できる
 ```
 
 Planning から Implementation を自動開始しない。
@@ -741,15 +744,19 @@ Review
 
 ## 18. Implementation の開始条件
 
+Work Item 取得前に、プロジェクトルートの `docs/agents/issue-tracker.md` を直接読み、対象 tracker と取得ルールを確認する。AGENTS.md / CLAUDE.md の有無に依存しない。既存設定の読み取り失敗を不存在扱いにせず `BLOCKED` とする。
+設定と明示された参照が矛盾する場合は、取得先・設定を変更せず、コード変更・Worker 起動前に `BLOCKED` としてユーザーに確認する。
+設定がなくても明示 URL / local path で取得先が確定する既存入力は維持する。番号だけで対象が曖昧なら停止する。Implementation は設定を作成・更新しない。
+
 次を確認する。
 
-- Work Item が存在する
-- Approved Plan を参照できる
-- 依存する Work Item が完了している
-- 完了条件が理解できる
+- Work Item が取得できる
+- 承認済みの正式な Approved Plan を参照できる
+- 実際の blocker を取得し、完了理由・結果を確認できる。GitHub の close だけでは完了としない
+- 完了条件と検証方法が理解できる
 - 未決定のユーザー判断が残っていない
 
-条件を満たさない場合は実装を始めない。
+条件を満たさない場合はコード変更・Worker 起動前に `BLOCKED` とする。`ready-for-agent` 等の label だけで開始を許可しない。
 
 Plan の前提や設計を変える必要がある場合は `REPLAN_REQUIRED` とする。
 
@@ -908,7 +915,7 @@ v1 の独自設定はこの1項目だけとする。
 
 Agent の model や thinking level は `subagents` 側で設定する。
 
-Work Item の保存先は `to-tickets` 側の設定を使う。
+Work Item の保存先は `taskflow-to-ticket` が準備するプロジェクトルートの `docs/agents/issue-tracker.md` を使う。Implementation は直接読み取り、作成・更新しない。
 
 設定取得専用の `taskflow_config` tool は作らない。
 
