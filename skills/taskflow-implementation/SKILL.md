@@ -22,6 +22,11 @@ Work Item の取得前に、対象プロジェクトのルートにある `docs/
 
 Implementation では tracker 設定の作成・更新・セットアップを行わない。不足があれば報告して停止する。
 取得先を確認した上で、本文、完了条件、コメント、`Blocked by` を含む最新の内容を取得する。
+
+対象 Work Item の取得先・識別が確認できた直後、Approved Plan / blocker gate による停止より前かつ Worker 起動前に、Root に `taskflow_evaluation_link` が提示され利用可能な場合だけ `{ operation: "implementation", issue: <取得確認済み ref> }` を Root が通知する。
+GitHub ref は https の完全な Issue URL または `{ kind: "github", host, owner, repo, number }` の明示構造、local ref は現在 cwd 内の project-relative ticket path を使う。番号だけやタイトルから推測せず、Taskflow ID を手入力しない。
+Tool 未導入・非アクティブ・通知失敗・保存未確認・未保存 leaf による追加停止・呼び忘れでも、本体の入力・進行・承認条件は変えない。通知のための保存待ち・再解決・補修手順、独自 Tool / manifest / collector、終了認定は追加しない。その後 `BLOCKED` / `REPLAN_REQUIRED` になる実行も通知対象だが、通知の成否は以下の通常の停止・承認 gate を緩める理由にはしない。
+
 Work Item のリンクや正式なパスから Approved Plan を解決し、関係する設計・仕様・ADR も読む。
 local ticket の相対リンクは ticket の場所を基準に解決する。Plan の参照が曖昧なら推測で別の Plan を採用しない。
 

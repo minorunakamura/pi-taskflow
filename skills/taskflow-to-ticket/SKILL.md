@@ -86,6 +86,15 @@ blocker には番号・タイトルと実ファイルへの相対リンクを含
 
 Local は各ファイルを再読し、GitHub は `gh issue view <参照> --repo <owner/repo> --json number,url,title,body,labels,state` と利用した native 関係の読み取りで確認する。件数、本文、使用 label、blocker の実参照・依存順、正式 Plan の解決、元 Issue の不変を照合する。
 
+### optional Evaluation 通知
+
+保存・公開の明示承認後、作成または既存同一 ticket の再利用を readback で確認できた refs だけを、同じ Planning Root から `{ operation: "add_issues", issues: [<確認済み refs>] }` で通知する。Root に `taskflow_evaluation_link` が提示され利用可能な場合だけ呼ぶ。
+GitHub refs は https の完全な Issue URL または `{ kind: "github", host, owner, repo, number }` の明示構造、local refs は現在 cwd 内の project-relative ticket path を使う（1通知最大100件）。Taskflow ID を手入力しない。
+部分作成でも確認済みの分だけ通知する。未承認・下書き・未確認の番号は通知しない。begin が未保存のときの `add_issues` 拒否を、begin の補修や新 UUID、代替記録で回避しない。
+Tool 未導入・非アクティブ・通知失敗・保存未確認・未保存 leaf による追加停止・呼び忘れでも、本体の入力・進行・個別承認条件は変えない。通知のための保存待ち・再解決手順、独自 Tool / manifest / collector、終了認定は追加しない。以下の通常の部分失敗による停止は維持する。
+
+### 通常の部分失敗処理と終了
+
 一部失敗や create の応答が不明な場合は成功扱いせず停止する。作成済みの実参照と確認できた範囲、未完了分、エラー原因、再開条件を報告する。blind retry せず読み取りで実在と内容を確認し、既に作成済みの ticket を再利用して重複を避ける。読めない状態では再作成しない。既存 ticket の修復が必要なら変更内容を示して別途承認を得る（Local は上書きせず停止する）。
 
 最終回答は設定の保存 / 再利用結果、チケットの実参照、正式 Plan または Implementation 未成立、依存関係の確認結果、未完了分を示す。ここで必ず終了する。Implementation、Worker / 子 Agent の起動、production code の実装、merge、release、deploy は行わない。
