@@ -41,7 +41,7 @@ export default function taskflow(pi: ExtensionAPI) {
       name: "taskflow_code_review",
       label: "Taskflow Code Review",
       description:
-        "Review current code changes in Plannotator when taskflow.plannotatorCodeReview is enabled in Pi settings; otherwise return skipped without opening Plannotator. When enabled, Implementation is complete only after explicit Approve. On Reject, the Root Agent must decide what to fix, recheck, and resubmit. Cancel or failure is not approval; cancel in Pi to stop waiting.",
+        "Review current code changes in Plannotator by default. If taskflow.plannotatorCodeReview is explicitly false in Pi settings, return skipped without opening Plannotator. When enabled, Implementation is complete only after explicit Approve. On Reject, the Root Agent must decide what to fix, recheck, and resubmit. Cancel or failure is not approval; cancel in Pi to stop waiting.",
       parameters: Type.Object({}),
       async execute(_toolCallId, _params, signal, _onUpdate, ctx) {
         const result: ReviewResult | { status: "skipped"; approved: false } =

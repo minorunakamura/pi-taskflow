@@ -227,26 +227,35 @@ describe("Plannotator Code Review", () => {
 });
 
 describe("taskflow_code_review tool", () => {
-  it.each([undefined, false])(
-    "reads settings internally and skips when disabled: %s",
-    async (value) => {
-      const events = createEventBus();
-      const receive = provider(events);
-      const { execute, getSettings } = await registerTool(events, value);
-      expect(await execute()).toEqual({
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({ status: "skipped", approved: false }),
-          },
-        ],
-        details: { status: "skipped", approved: false },
-        isError: false,
-      });
-      expect(getSettings).toHaveBeenCalledTimes(1);
-      expect(receive).not.toHaveBeenCalled();
-    },
-  );
+  it("reads settings internally and skips when explicitly disabled", async () => {
+    const events = createEventBus();
+    const receive = provider(events);
+    const { execute, getSettings } = await registerTool(events, false);
+    expect(await execute()).toEqual({
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({ status: "skipped", approved: false }),
+        },
+      ],
+      details: { status: "skipped", approved: false },
+      isError: false,
+    });
+    expect(getSettings).toHaveBeenCalledTimes(1);
+    expect(receive).not.toHaveBeenCalled();
+  });
+
+  it("opens Code Review by default when the setting is absent", async () => {
+    const events = createEventBus();
+    const receive = provider(events, handled({ approved: true }));
+    const { execute, getSettings } = await registerTool(events);
+    expect(await execute()).toMatchObject({
+      details: { status: "approved", approved: true },
+      isError: false,
+    });
+    expect(getSettings).toHaveBeenCalledTimes(1);
+    expect(receive).toHaveBeenCalledTimes(2);
+  });
 
   it.each([true, false])(
     "returns enabled Code Review decision and feedback: %s",

@@ -36,28 +36,28 @@ const enabled = (trusted = true) =>
   );
 
 describe("taskflow.plannotatorCodeReview through Pi SettingsManager", () => {
-  it("defaults to false with no settings files", () => {
-    expect(enabled()).toBe(false);
+  it("defaults to true with no settings files", () => {
+    expect(enabled()).toBe(true);
   });
 
-  it("defaults to false for explicitly undefined namespace or value", () => {
+  it("defaults to true for explicitly undefined namespace or value", () => {
     const settings = SettingsManager.inMemory().getSettings();
     const missingNamespace = { ...settings, taskflow: undefined };
     const missingValue = {
       ...settings,
       taskflow: { plannotatorCodeReview: undefined },
     };
-    expect(codeReviewEnabled(missingNamespace)).toBe(false);
-    expect(codeReviewEnabled(missingValue)).toBe(false);
+    expect(codeReviewEnabled(missingNamespace)).toBe(true);
+    expect(codeReviewEnabled(missingValue)).toBe(true);
   });
 
   it.each([
     {},
     { taskflow: {} },
     { subagents: { model: "unchanged", thinking: "high" } },
-  ])("defaults to false when the setting is absent: %j", (config) => {
+  ])("defaults to true when the setting is absent: %j", (config) => {
     configure(config);
-    expect(enabled()).toBe(false);
+    expect(enabled()).toBe(true);
   });
 
   it.each([false, true])("reads the Global value %s", (value) => {
@@ -75,10 +75,13 @@ describe("taskflow.plannotatorCodeReview through Pi SettingsManager", () => {
     expect(enabled()).toBe(value);
   });
 
-  it("inherits Global when Project does not set the value", () => {
-    configure(setting(true), { taskflow: {} });
-    expect(enabled()).toBe(true);
-  });
+  it.each([false, true])(
+    "inherits Global %s when Project does not set the value",
+    (value) => {
+      configure(setting(value), { taskflow: {} });
+      expect(enabled()).toBe(value);
+    },
+  );
 
   it.each([false, true])(
     "ignores an untrusted Project override of Global %s",
@@ -91,9 +94,9 @@ describe("taskflow.plannotatorCodeReview through Pi SettingsManager", () => {
   it("does not read or validate an untrusted Project file", () => {
     configure({});
     writeFileSync(join(cwd, ".pi/settings.json"), "invalid JSON");
-    expect(enabled(false)).toBe(false);
+    expect(enabled(false)).toBe(true);
     configure({}, setting("invalid"));
-    expect(enabled(false)).toBe(false);
+    expect(enabled(false)).toBe(true);
   });
 
   it.each(["true", "false", 0, 1, null, [], {}])(
