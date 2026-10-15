@@ -26,6 +26,15 @@ Markdown リンクの相対パスは、各参照元ファイルのディレク�
 以下で利用する Skill は実行前に読み、Agent や tool は公開 API に従って使う。
 必要なコンポーネントが利用できない場合は、代替実装や独自の配線を追加せず、不足と再開条件を報告する。
 
+### optional Evaluation 通知
+
+目的と新規 / 再計画対象が確認できた時点で、Root に `taskflow_evaluation_link` が提示され利用可能な場合だけ Root が通知する。
+新規は `{ operation: "begin_planning", displayName: <160文字以内の目的名> }`、再計画はこれに `sourceIssues: [<通常の取得で確認済みの既存 Issue refs>]` を必ず含める。
+GitHub refs は https の完全な Issue URL または `{ kind: "github", host, owner, repo, number }` の明示構造、local refs は現在 cwd 内の project-relative ticket path を使う。番号だけやタイトルから推測せず、Taskflow ID を手入力しない。
+明示対応が全件一意かつ同じ Taskflow の場合の既存 ID 再利用は Tool に委ねる。関連付け不能でも `sourceIssues` を省略して新 UUID で回避しない。
+Tool 未導入・非アクティブ・通知失敗・保存未確認・未保存 leaf による追加停止・呼び忘れ・再計画の関連付け不能でも、本体の入力・進行・承認条件は変えない。独自 unresolved / 保存待ち / 再解決・補修手順、代替 Tool / manifest / collector、終了認定は追加しない。
+これは optional 通知だけの扱いであり、以下の通常手順で必要な停止や Plan / tracker 設定 / 分割 / 保存公開の個別承認は維持する。
+
 ## 2. 事実を調べる
 
 情報の種類によって解決方法を分ける。調べれば分かることをユーザーへの質問にしない。
@@ -201,6 +210,7 @@ Plannotator の内部保存だけでプロジェクトの正式な保存を済�
 - Work Item の種別はそれぞれの内容で決まり、Feature Plan からすべて Feature が生成されるとは限らない。
 - Plan 承認、tracker 設定承認、分割承認、最終本文・保存先の保存・公開承認をそれぞれ別に得る。分割承認だけでは保存・公開せず、ticket Skill の個別承認手順を維持する。
 - 分割中に承認済みの要件・設計を変更する必要が出たら、勝手に拡張せず Plan Review に戻る。
+- optional Evaluation 通知は同じ Planning Root で続ける。保存・公開の明示承認後、作成・取得確認済み refs だけを `add_issues` に渡す（既存同一 ticket 再利用・部分作成を含む）。begin が未保存でも本体を継続し、`add_issues` の拒否を補修しない。
 
 保存・公開後は各 Work Item の参照、Approved Plan への参照、ユーザー確認が成立したことを確認する。
 一部だけ保存できた場合は未完了分を報告し、Planning 完了とはしない。
