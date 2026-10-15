@@ -883,7 +883,7 @@ Root Agent が結果をまとめ、各指摘について次を判断する。
 
 Plannotator Code Review は設定で有効・無効を切り替える。
 
-デフォルトは無効とする。
+デフォルトは有効とする。明示的に `false` を設定した場合のみ無効にする。
 
 有効な場合は、Plannotator の承認が得られるまで完了扱いにしない。
 
@@ -906,7 +906,7 @@ Project
 ```json
 {
   "taskflow": {
-    "plannotatorCodeReview": false
+    "plannotatorCodeReview": true
   }
 }
 ```

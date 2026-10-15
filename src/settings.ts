@@ -4,8 +4,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 export function codeReviewEnabled(
   settings: ReturnType<ExtensionAPI["getSettings"]>,
 ): boolean {
-  if (!("taskflow" in settings) || settings.taskflow === undefined)
-    return false;
+  if (!("taskflow" in settings) || settings.taskflow === undefined) return true;
   const taskflow = settings.taskflow;
   if (
     typeof taskflow !== "object" ||
@@ -18,7 +17,7 @@ export function codeReviewEnabled(
     !("plannotatorCodeReview" in taskflow) ||
     taskflow.plannotatorCodeReview === undefined
   ) {
-    return false;
+    return true;
   }
   const value = taskflow.plannotatorCodeReview;
   if (typeof value !== "boolean") {

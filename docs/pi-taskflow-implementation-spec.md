@@ -832,14 +832,14 @@ Project:
 ```json
 {
   "taskflow": {
-    "plannotatorCodeReview": false
+    "plannotatorCodeReview": true
   }
 }
 ```
 
 v1 の独自設定はこの1項目だけとする。
 
-デフォルトは `false`。
+デフォルトは `true`。未設定時も有効とし、明示的に `false` を設定した場合のみ無効にする。
 
 Project 設定は Global 設定を上書きする。
 
