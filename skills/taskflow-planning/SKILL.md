@@ -185,6 +185,7 @@ Oracle を利用する場合は、必要に応じて次も助言の観点に含�
 
 - `status: "approved"` かつ `approved: true` の結果、つまりユーザーの明示的な Plannotator Approve だけを承認とする。
 - Reject は返された `feedback` を使って Root Agent が修正する。必要なら調査・ユーザー判断に戻り、修正後の全文を再提出する。
+- `answersOnly: true` は質問への回答のみであり、承認ではない。回答を決定事項として Plan に反映し、未回答の質問は維持して、修正後の全文を再提出する。
 - Cancel、ブラウザを閉じる・放置すること、Plannotator のエラー、利用不可、不正な応答は承認ではない。承認待ち、または停止として報告し、Approved Plan の確定や Work Item の公開に進まない。
 
 承認後に Plan の内容を変更する必要が出た場合は再 Review を受ける。未承認の変更を承認済み内容に混ぜない。

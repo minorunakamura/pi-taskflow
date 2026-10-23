@@ -85,6 +85,22 @@ describe("Plannotator Code Review", () => {
     },
   );
 
+  it.each([undefined, cwd, "https://github.com/owner/repo/pull/1"])(
+    "accepts optional review target metadata: %s",
+    async (target) => {
+      await Promise.all(
+        [true, false].map(async (approved) => {
+          const events = createEventBus();
+          provider(events, handled({ approved, target }));
+          expect(await reviewCode(events, cwd)).toEqual({
+            status: approved ? "approved" : "rejected",
+            approved,
+          });
+        }),
+      );
+    },
+  );
+
   it("does not time out a human review or approve from a Plan decision event", async () => {
     const events = createEventBus();
     const receive = provider(events);
@@ -108,7 +124,7 @@ describe("Plannotator Code Review", () => {
     "browser exit never counts as approval (approved: %s)",
     async (approved) => {
       const events = createEventBus();
-      provider(events, handled({ approved, exit: true }));
+      provider(events, handled({ approved, exit: true, target: cwd }));
       expect(await reviewCode(events, cwd)).toEqual({
         status: "cancelled",
         approved: false,
@@ -188,6 +204,10 @@ describe("Plannotator Code Review", () => {
     handled({ approved: true, feedback: {} }),
     handled({ approved: true, annotations: {} }),
     handled({ approved: true, agentSwitch: 1 }),
+    handled({ approved: true, target: null }),
+    handled({ approved: true, target: 1 }),
+    handled({ approved: true, target: {} }),
+    handled({ approved: true, target: [cwd] }),
     handled({ approved: true, exit: "true" }),
     handled({ approved: true, status: "cancelled" }),
     { status: "error", error: true },
@@ -263,7 +283,11 @@ describe("taskflow_code_review tool", () => {
       const events = createEventBus();
       provider(
         events,
-        handled({ approved, feedback: "Root decides what to change." }),
+        handled({
+          approved,
+          feedback: "Root decides what to change.",
+          target: cwd,
+        }),
       );
       const { execute } = await registerTool(events, true);
       const decision = {
