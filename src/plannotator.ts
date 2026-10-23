@@ -13,7 +13,7 @@ export type ReviewResult = {
   error?: string;
 };
 
-export type PlanReviewResult = ReviewResult;
+export type PlanReviewResult = ReviewResult & { answersOnly?: boolean };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -73,8 +73,17 @@ export function reviewPlan(
         optionalFields.some(
           (key) => data[key] !== undefined && typeof data[key] !== "string",
         ) ||
+        (data.answersOnly !== undefined &&
+          typeof data.answersOnly !== "boolean") ||
+        (data.answersOnly === true && data.approved) ||
         Object.keys(data).some(
-          (key) => !["reviewId", "approved", ...optionalFields].includes(key),
+          (key) =>
+            ![
+              "reviewId",
+              "approved",
+              "answersOnly",
+              ...optionalFields,
+            ].includes(key),
         )
       ) {
         finish({
@@ -88,6 +97,9 @@ export function reviewPlan(
         status: data.approved ? "approved" : "rejected",
         approved: data.approved,
         ...(typeof data.feedback === "string" && { feedback: data.feedback }),
+        ...(typeof data.answersOnly === "boolean" && {
+          answersOnly: data.answersOnly,
+        }),
       });
     });
     // Only startup is timed out. Silence/browser close is never implicit approval;
@@ -250,7 +262,7 @@ export function reviewCode(
           reviewResponse.status !== "handled" ||
           !isRecord(decision) ||
           typeof decision.approved !== "boolean" ||
-          ["feedback", "agentSwitch"].some(
+          ["feedback", "agentSwitch", "target"].some(
             (key) =>
               decision[key] !== undefined && typeof decision[key] !== "string",
           ) ||
@@ -265,6 +277,7 @@ export function reviewCode(
                 "annotations",
                 "agentSwitch",
                 "exit",
+                "target",
               ].includes(key),
           )
         ) {

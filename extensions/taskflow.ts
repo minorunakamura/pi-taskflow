@@ -16,7 +16,7 @@ export default function taskflow(pi: ExtensionAPI) {
       name: "taskflow_plan_review",
       label: "Taskflow Plan Review",
       description:
-        "Submit a completed Plan directly to Plannotator without entering Plan Mode. Only explicit Approve is approval. On rejection, use the returned feedback to revise and resubmit. Closing the browser leaves review pending; cancel in Pi to stop waiting.",
+        "Submit a completed Plan directly to Plannotator without entering Plan Mode. Only explicit Approve is approval. On rejection, use the returned feedback to revise and resubmit. If answersOnly is true, fold the user's answers into the Plan and resubmit; answers are not approval. Closing the browser leaves review pending; cancel in Pi to stop waiting.",
       parameters: Type.Object({
         planContent: Type.String({ minLength: 1 }),
         planFilePath: Type.Optional(Type.String({ minLength: 1 })),

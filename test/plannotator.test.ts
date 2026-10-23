@@ -76,6 +76,27 @@ describe("Plannotator bridge", () => {
     });
   });
 
+  it.each([undefined, false, true])(
+    "preserves optional answersOnly without approving the Plan: %s",
+    async (answersOnly) => {
+      const events = createEventBus();
+      provider(events);
+      const result = reviewPlan(events, plan);
+      events.emit("plannotator:review-result", {
+        reviewId: "review-1",
+        approved: false,
+        feedback: "Use S3.",
+        answersOnly,
+      });
+      expect(await result).toEqual({
+        status: "rejected",
+        approved: false,
+        feedback: "Use S3.",
+        ...(answersOnly !== undefined && { answersOnly }),
+      });
+    },
+  );
+
   it.each([false, true])(
     "cancels safely (already aborted: %s)",
     async (alreadyAborted) => {
@@ -168,6 +189,11 @@ describe("Plannotator bridge", () => {
     { approved: 1 },
     { approved: true, feedback: {} },
     { approved: true, savedPath: 1 },
+    { approved: false, answersOnly: "true" },
+    { approved: false, answersOnly: 1 },
+    { approved: false, answersOnly: null },
+    { approved: false, answersOnly: {} },
+    { approved: true, answersOnly: true },
     { approved: true, exit: true },
     { approved: true, status: "cancelled" },
   ])("rejects invalid/unexpected decisions: %j", async (decision) => {
@@ -312,6 +338,30 @@ describe("taskflow Extension", () => {
       isError: false,
     });
     expect(receive).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns question answers as a non-error, unapproved tool result", async () => {
+    const events = createEventBus();
+    provider(events);
+    const { tool, context } = await registerTool(events);
+    const result = tool.execute("call-1", plan, undefined, undefined, context);
+    events.emit("plannotator:review-result", {
+      reviewId: "review-1",
+      approved: false,
+      feedback: "Use S3.",
+      answersOnly: true,
+    });
+    const decision = {
+      status: "rejected",
+      approved: false,
+      feedback: "Use S3.",
+      answersOnly: true,
+    };
+    expect(await result).toEqual({
+      content: [{ type: "text", text: JSON.stringify(decision) }],
+      details: decision,
+      isError: false,
+    });
   });
 
   it("marks bridge failures as tool errors", async () => {
