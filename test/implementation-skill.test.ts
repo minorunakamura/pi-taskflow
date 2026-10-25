@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadSkillsFromDir } from "@earendil-works/pi-coding-agent";
 import { expect, it } from "vitest";
@@ -44,4 +44,27 @@ it("loads the Implementation Skill through Pi and resolves all Implementation Pl
       true,
     );
   }
+});
+
+it("resolves the bundled Planning Skill for replan guidance", () => {
+  const dir = fileURLToPath(new URL("../skills/", import.meta.url));
+  const { skills, diagnostics } = loadSkillsFromDir({ dir, source: "test" });
+  expect(diagnostics).toEqual([]);
+  const implementation = skills.find(
+    (skill) => skill.name === "taskflow-implementation",
+  );
+  const planning = skills.find((skill) => skill.name === "taskflow-planning");
+  expect(implementation).toBeDefined();
+  expect(planning).toBeDefined();
+  expect(planning!.disableModelInvocation).toBe(true);
+
+  const links = [
+    ...readFileSync(implementation!.filePath, "utf8").matchAll(
+      /\]\(([^)]+\/taskflow-planning\/SKILL\.md)\)/g,
+    ),
+  ];
+  expect(links).toHaveLength(1);
+  expect(resolve(dirname(implementation!.filePath), links[0][1])).toBe(
+    planning!.filePath,
+  );
 });

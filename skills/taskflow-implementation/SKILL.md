@@ -184,8 +184,28 @@ Work Item とすべての完了条件を個別に読み直し、最終差分を 
 
 - `READY_FOR_MERGE`: 全完了条件を満たし、関連チェック・直接検証・2つの自動レビューが完了、採用した指摘が解決済み、Code Review gate は skipped または明示的に approved。
 - `BLOCKED`: 入力・依存・ユーザー判断・承認・必要なコンポーネントなどが不足。理由と再開条件を示す。
-- `REPLAN_REQUIRED`: Approved Plan の前提・仕様・設計を変える必要がある。矛盾と再計画が必要な範囲を示す。
+- `REPLAN_REQUIRED`: Approved Plan の前提・仕様・設計を変える必要がある。矛盾と再計画が必要な範囲に加え、以下の再開手順を必ず示す。
 - `FAILED`: 実装・チェック・検証・レビューなどが失敗して未解決。部分変更と失敗の根拠を示す。
 
 変更内容、実行したチェック / テストと結果、直接検証、完了条件ごとの状態、指摘の採否、残るリスク・未解決事項を簡潔に報告する。
 `READY_FOR_MERGE` は merge の許可や実行ではない。ここで終了し、merge、release、deploy、無関係な follow-up を実行しない。
+
+### REPLAN_REQUIRED の再開案内
+
+どの工程で `REPLAN_REQUIRED` になっても、最終回答に、同じ対象プロジェクトの新しい Root セッションで [taskflow-planning Skill](../taskflow-planning/SKILL.md) を使うコピー可能な再計画の依頼文を示す。ユーザーが再開方法を質問するまで待たない。
+Implementation 再開用の kickoff はここでは提示せず、改訂 Plan の明示的な Approve・正式保存と、それに整合する Work Item の確認・保存・公開が完了した後、Planning の最終回答で提示する旨を案内する。Plan 承認と Work Item の保存・公開承認は別であり、Planning 完了後も自動で実装を開始しない。
+
+以下の雛形を、確認済みの対象 cwd、Work Item の完全な URL / local path、正式 Plan 参照、停止理由・変更要望で具体化する。未決定事項は未決定として示し、参照先を推測しない。会話履歴や Scout 出力を正式入力にせず、会話での変更要望を Plan 承認として扱わない。
+
+```text
+/skill:taskflow-planning <Work Item 参照> を再計画してください。
+REPLAN_REQUIRED による再計画です。
+対象 cwd: <対象プロジェクト>
+正式 Plan: <現在参照している Plan>
+停止理由・変更要望: <Approved Plan と変える必要がある点>
+未決定事項: <Planning で解決する判断、なければ「なし」>
+既存の未コミット変更・部分実装を保持し、変更・破棄しないでください。
+改訂 Plan の承認・正式保存と Work Item の確認・保存・公開まで行い、確定した参照で Implementation 再開用の kickoff を提示して、Implementation は開始せず停止してください。
+```
+
+部分実装と実施済み / 未確認の検証も簡潔に報告するが、過去のチェック・Review・Code Review Approve を変更後の差分の検証や承認として流用しない。既存変更の commit / stash / 破棄を独断で行わず、再開案内を提示して終了する。このセッションで Plan / Work Item を勝手に更新したり、Planning / Worker を自動起動したりしない。

@@ -63,6 +63,14 @@ Plan の内容、保存された設定と ticket、tool 呼び出し履歴、最
 別の試行で Review を閉じる・キャンセルする場合、承認済みとして保存したり ticket 公開に進んだりしないことを確認する。
 Plan Review が利用できない、または Plan / Work Item の保存が失敗する場合は、未完了と再開条件を報告し、Planning 成功とはしない。
 
+## REPLAN_REQUIRED からの再開案内の追加確認
+
+- Implementation が `REPLAN_REQUIRED` で停止した際の Planning 用依頼文を、同じ対象 cwd の新しい Root セッションで使う。既存 Work Item・正式 Plan・停止理由を確認し、未コミット変更・部分実装を変更・commit / stash / 破棄しないことを差分と tool 履歴で確認する。
+- 改訂 Plan の明示的な Approve・正式保存と、それに整合する Work Item の確認・保存・公開がすべて完了した後だけ、最終回答に別の新しい Implementation セッション用のコピー可能な kickoff があることを確認する。Plan 承認を Work Item の保存・公開承認に流用しない。
+- 再計画で Work Item / Plan 参照が変わる試行も用意し、kickoff の対象 cwd と再開対象 Work Item が保存・公開後の確定した参照であり、Work Item から改訂 Approved Plan を解決できることを確認する。古い参照や未確定の参照を使わない。
+- kickoff に既存変更の保持・現在の差分の再確認と、過去のチェック・Review・Code Review Approve を流用しない指示があり、Planning は Worker / Implementation を自動起動せず停止することを確認する。
+- 通常の Planning ではこの再開用 kickoff を追加しない。再計画でも、承認待ち・保存失敗・一部だけ公開の場合は提示しない。実 Root の最終回答と履歴で確認し、文言一致や loader test を手順遵守の証拠にしない。
+
 ## 確認結果の報告
 
 実行した場合は、Pi / model、利用したコンポーネント、確認日時、Plan と Work Items の参照、各合格条件の結果を報告する。

@@ -61,6 +61,9 @@ fixture の `.pi/subagents`、sessions、ログは一時領域の runtime artifa
 
 - Work Item 不在、Approved Plan 不在、未完了の genuine blocker、不明な完了条件、未解決のユーザー判断では、Worker やコード変更の前に `BLOCKED`。
 - Plan と現在のコードが矛盾して設計変更が必要なら `REPLAN_REQUIRED`。Worker から Plan 変更の要求が返った場合も Root が停止する。
+- `REPLAN_REQUIRED` の最終回答に、ユーザーから再開方法の質問がなくても、新しい Planning セッション用のコピー可能な依頼文があることを確認する。対象 cwd・確認済みの Work Item / Plan 参照・停止理由・変更要望・未決定事項と `REPLAN_REQUIRED` による再計画であることが具体化され、未確定の参照を捏造していないこと。Implementation 再開用の kickoff はここでは提示しない。
+- 再開案内が、改訂 Plan の明示的な承認・正式保存と Work Item の確認・保存・公開をそれぞれ必要とし、完了後の Planning 最終回答で確定した参照の Implementation 再開用 kickoff を提示するよう依頼していることを確認する（[Planning の追加確認](planning-feature.md#replan_required-からの再開案内の追加確認)）。案内を根拠に Planning / Worker を自動起動せず、Plan / Work Item を更新しないこと。
+- 部分実装がある試行でも、未コミット変更を commit / stash / 破棄せず保持すること、実施済み / 未確認の検証を区別し、過去のチェックや Approve を変更後の差分の成功根拠にしないことを確認する。これらは実 Root の履歴・差分・最終回答で確認し、Skill の文言一致や loader test を手順遵守の証拠にしない。
 - チェックや直接検証の失敗を隠して `READY_FOR_MERGE` にしない。
 - Code Review 有効時は実際のユーザーが明示的に Approve するまで完了しない。Reject の採否は Root が判断し、修正後に必要な確認と再提出を行う。Cancel / unavailable / error は承認ではない。
 
