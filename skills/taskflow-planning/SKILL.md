@@ -13,6 +13,7 @@ Root Agent が全体の進行、Playbook の選択、ユーザーとの対話、
 ## 1. 依頼と Playbook を確認する
 
 依頼の目的、要件、制約、対象外を確認し、参照された設計・仕様とプロジェクトの規約を読む。
+Implementation の `REPLAN_REQUIRED` を受けた再計画では、対象 Work Item、現在の正式 Plan、停止理由・変更要望・未決定事項を確認する。既存の未コミット変更・部分実装は保持し、変更・commit / stash / 破棄を独断で行わない。
 依頼の名前ではなく実際の作業内容から Root Agent が Playbook を選ぶ。分類だけのために追加の LLM 呼び出しを行わない。
 
 - 新しい動作、動作変更は [Feature Playbook](references/playbooks/feature.md) を読み、共通手順の調査・設計・検証方法を補う。
@@ -227,3 +228,19 @@ Plannotator の内部保存だけでプロジェクトの正式な保存を済�
 最終回答では Approved Plan の場所と Work Items の参照を示す。
 ここで必ず停止する。`taskflow-to-ticket` の保存・公開後も Implementation を自動開始しない。
 Worker 起動、production code の実装、merge、release、deploy は行わない。
+
+### REPLAN_REQUIRED からの Implementation 再開案内
+
+Implementation の `REPLAN_REQUIRED` を受けた再計画の場合だけ、上記の終了条件がすべて成立した後、最終回答に別の新しい Root セッションで [taskflow-implementation Skill](../taskflow-implementation/SKILL.md) を使うコピー可能な kickoff を示す。ユーザーが再開方法を質問するまで待たない。通常の Planning や、承認待ち・保存失敗・一部だけの公開など未完了の場合には、この再開用 kickoff を提示しない。
+
+以下の雛形を、確認済みの対象 cwd と再開対象 Work Item の完全な URL / local path で具体化する。再計画で参照が変わった場合は、保存・公開後の確定した参照を使い、推測や古い参照で代用しない。
+
+```text
+/skill:taskflow-implementation <確定した Work Item 参照> の実装を再開してください。
+対象 cwd: <対象プロジェクト>
+更新済み Work Item と、そこから参照される改訂 Approved Plan を正式入力として確認してください。
+既存の未コミット変更・部分実装を保持し、現在のコードと差分を改めて確認して続行してください。
+過去のチェック・Review・Code Review Approve を変更後の差分の検証や承認として流用しないでください。
+```
+
+kickoff の提示は実装開始の許可や自動実行ではない。会話履歴や Scout 出力を正式入力にせず、ここで終了する。

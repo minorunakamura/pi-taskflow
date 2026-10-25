@@ -44,6 +44,29 @@ it("loads the Planning Skill through Pi and resolves all Planning Playbooks", ()
   }
 });
 
+it("resolves the bundled Implementation Skill for replan resume guidance", () => {
+  const dir = fileURLToPath(new URL("../skills/", import.meta.url));
+  const { skills, diagnostics } = loadSkillsFromDir({ dir, source: "test" });
+  expect(diagnostics).toEqual([]);
+  const planning = skills.find((skill) => skill.name === "taskflow-planning");
+  const implementation = skills.find(
+    (skill) => skill.name === "taskflow-implementation",
+  );
+  expect(planning).toBeDefined();
+  expect(implementation).toBeDefined();
+  expect(implementation!.disableModelInvocation).toBe(true);
+
+  const links = [
+    ...readFileSync(planning!.filePath, "utf8").matchAll(
+      /\]\(([^)]+\/taskflow-implementation\/SKILL\.md)\)/g,
+    ),
+  ];
+  expect(links).toHaveLength(1);
+  expect(resolve(dirname(planning!.filePath), links[0][1])).toBe(
+    implementation!.filePath,
+  );
+});
+
 it("resolves the bundled ticket Skill from both Planning SKILL.md and its Feature Playbook", () => {
   const dir = fileURLToPath(new URL("../skills/", import.meta.url));
   const { skills, diagnostics } = loadSkillsFromDir({ dir, source: "test" });
