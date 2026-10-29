@@ -50,11 +50,12 @@ Approved Plan と確認済み Work Items の保存まで行い、実装は開始
 5. Root が修正して再度 `taskflow_plan_review` を呼ぶ。Reject された Plan から Work Items を公開しない。
 6. ユーザーが Plannotator で明示的に Approve する。Root が承認された全文を `docs/plans/<slug>.md` に保存する。
 7. Root が Planning と Feature Playbook の各リンク元から同梱 `taskflow-to-ticket/SKILL.md` を解決して読む。正式に保存した Approved Plan のパス・全文・追加制約を渡す。ticket Skill が fixture root の設定を直接読み、不存在を確認して Local 設定の内容・保存先を提示し、実ユーザー承認後だけ保存・readback する。旧 setup は呼ばず、AGENTS.md / CLAUDE.md / Domain / triage 設定を作らない。
-8. ticket Skill が分割案と依存関係を提示し、ユーザーの分割承認を待つ。承認後も ticket はまだなく、最終本文・保存先を示して別の保存承認を待つ。実ユーザーの保存承認後に Local Work Items を保存し、各項目の Plan リンクを ticket の場所から解決して正式な全文を確認する。Plan・設定・分割の承認を保存許可に流用しない。
+8. ticket Skill が分割案と依存関係を提示し、ユーザーの分割承認を待つ。承認後も ticket はまだなく、最終本文・保存先を通常の会話メッセージで提示してから、短い `ask_user_question` で別の保存承認を待つ。tool 引数の `question`、選択肢の `label`・`description`・`preview` に本文が入っていないことを確認する。実ユーザーの保存承認後に Local Work Items を保存し、各項目の Plan リンクを ticket の場所から解決して正式な全文を確認する。Plan・設定・分割の承認を保存許可に流用しない。
 9. 最終回答に Plan と Work Items の参照がある。Root はここで終了し、Worker や Implementation を開始しない。
 10. `greet.mjs` が最初の1行のままであることと、`node greet.mjs --uppercase` がまだ `Hello, world!` を出力することを確認する。新動作が実装されていないことも、この Planning シナリオの合格条件である。
 
 Plan の内容、保存された設定と ticket、tool 呼び出し履歴、最終回答を直接確認する。Plan・設定・分割・保存の各承認記録と、その承認前に対象ファイルが未作成であることを区別して観測する。
+複数 Work Items の試行でも、全件の最終本文・保存先が通常の会話メッセージに提示され、承認質問には本文が入らないことを確認する。本文の修正を要求した場合は、修正版を会話に再提示して再承認を待ち、拒否・取消では保存しないことも観測する。
 成功後は [Feature Implementation smoke](implementation-feature.md) の手順で設定・正式 Plan・ticket・初期コードだけを別 fixture / fresh Root に引き継ぐ。
 テスト fixture や途中結果を本リポジトリの正式な Plan / Work Item に混ぜない。
 
@@ -66,6 +67,7 @@ Plan Review が利用できない、または Plan / Work Item の保存が失�
 ## REPLAN_REQUIRED からの再開案内の追加確認
 
 - Implementation が `REPLAN_REQUIRED` で停止した際の Planning 用依頼文を、同じ対象 cwd の新しい Root セッションで使う。既存 Work Item・正式 Plan・停止理由を確認し、未コミット変更・部分実装を変更・commit / stash / 破棄しないことを差分と tool 履歴で確認する。
+- 既存の単一 Issue へ再計画コメントを追記する試行では、コメント全文と公開先を通常の会話メッセージに提示し、`ask_user_question` のどの項目にも本文を入れず短い公開確認だけを行うことを履歴で確認する。複数件と同じ提示方法であることを確認する。GitHub へのテスト書き込みは許可されていないため、この試行では公開を保留して停止し、コメントが追加されないことを確認する。
 - 改訂 Plan の明示的な Approve・正式保存と、それに整合する Work Item の確認・保存・公開がすべて完了した後だけ、最終回答に別の新しい Implementation セッション用のコピー可能な kickoff があることを確認する。Plan 承認を Work Item の保存・公開承認に流用しない。
 - 再計画で Work Item / Plan 参照が変わる試行も用意し、kickoff の対象 cwd と再開対象 Work Item が保存・公開後の確定した参照であり、Work Item から改訂 Approved Plan を解決できることを確認する。古い参照や未確定の参照を使わない。
 - kickoff に既存変更の保持・現在の差分の再確認と、過去のチェック・Review・Code Review Approve を流用しない指示があり、Planning は Worker / Implementation を自動起動せず停止することを確認する。
