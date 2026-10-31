@@ -71,6 +71,14 @@ Scout の報告のうち、実装方針・変更範囲・既存動作の維持�
 正式なチェックは package scripts、Makefile などの task 定義、CI、README / 開発ドキュメントから確認する。
 設定ファイルの存在だけで lint / formatter / typecheck コマンドを推測しない。不足する lint / formatter infrastructure を勝手に追加しない。
 Work Item ごとの直接検証方法も確認し、リポジトリのチェックとは区別する。
+
+テスト設計・検証には次の共通基準を適用する。
+
+- 要求と具体的な回帰リスクから保証したい動作・失敗を特定し、承認済み seam（公開境界）、必要な前提状態、最小の実用的な検証経路の順に判断する。
+- 適切な既存テストを優先し、保証の重なりを確認する。保証に不要な fixture、履歴、remote、後続操作は準備・実行しない。前提状態を直接用意する場合も必要な整合条件を維持し、接続や状態遷移自体が保証対象ならその経路を実際に通す。
+- 公開境界での検証は毎回 full pipeline を起動することと同義ではない。必要な実操作、操作前後など異なる時点の安全確認、必要な拒否条件、trust boundary、安全性、データ整合性、回帰確認は単純な重複として削らない。
+- 保証が不足する場合は必要なテスト・検証を追加し、重さだけを理由に見送らない。必要な実操作を mock で消したり、テスト専用の公開 API・抽象化を増やしたりして、保証や production code を歪めない。
+
 既存の公開 API、Skills、Extensions、Agents、依存関係を優先し、Approved Plan の範囲で必要最小限の変更を決める。
 実装開始前の差分を確認し、既存のユーザー変更や別 Work Item の変更を巻き込まない。
 
@@ -83,7 +91,8 @@ Worker への依頼は現在の Work Item に必要な情報だけとし、次�
 - relevant Approved Plan sections（正式な参照と関係部分）
 - completion criteria
 - constraints / out-of-scope items
-- verification method（正式なチェックと直接検証方法、期待結果）
+- verification method（保証対象、承認済み seam、整合条件を保った必要な前提状態と検証経路、再利用できる適切な既存テスト、正式なチェックと直接検証方法、期待結果）
+- section 3 の共通基準のうち今回関係する内容と、Worker / Root の検証分担（fresh Worker が基準を既読と仮定せず、内容を渡す）
 - relevant facts discovered from the current code（根拠となるファイルと重要事項）
 - 対象 cwd と編集範囲、結果として変更ファイル・実行結果・未解決事項を報告すること
 
@@ -98,8 +107,9 @@ subagent({
 ```
 
 Planning の会話全文、Scout の途中結果、無関係な Plan sections を渡さない。
+Worker は対象テストと focused regression を実行し、共有処理など影響が広ければ検証範囲を広げる。Root が後で正式チェックを行うことだけを理由に必要な検証を省略させず、一方で Root と同じ全正式チェックを機械的に要求しない。実行結果と未確認事項は既存の結果報告に含める。
 Ponytail Extension は常時有効であるため、Worker に `ponytail` Skill を明示的に追加しない。
-Approved Plan が TDD を指定している場合だけ、既存の `tdd` Skill を Worker に指定し、承認済みの公開インターフェースをテストする。
+Approved Plan が TDD を指定している場合だけ、既存の `tdd` Skill を Worker に指定する。TDD にも section 3 の共通基準を適用し、承認済み seam で Red → Green を行う。Plan で承認済みの seam の再承認は求めない。未承認の seam や要件・公開契約・設計の変更が必要な場合は、以下の確認・再計画手順に従う。
 
 Worker に以下の境界を明示し、Root 自身の判断・依頼・受入れにも適用する。
 
@@ -118,7 +128,9 @@ Worker 実行中は同じファイルを別の writer が変更しない。失�
 
 ## 5. リポジトリのチェックを行う
 
-Worker の終了後、Root が実際の変更を確認し、プロジェクトで正式に定義された関連チェックとテストを実行する。
+Worker の終了後、Root が実際の変更を確認し、プロジェクトで正式に定義された関連チェックとテストを自ら実行する。
+Worker の対象テスト・focused regression と Root の正式実行は分担が異なり、Root の実行を Worker の報告で代替しない。正式コマンドに full suite が含まれる場合、section 3 の共通基準を理由に間引かない。
+Root に必要な正式実行を終えた後は、実行主体が変わったことだけを理由に同じ検証をさらに繰り返さない。修正後の再検証は section 8 に従う。
 実行したコマンド、終了コード、成功 / 失敗、実行できなかった理由を確認する。Worker の自己申告だけを成功の証拠にしない。
 チェックが失敗した場合は原因を確認し、今回の範囲内の不具合なら修正を依頼する。未解決の失敗は完了扱いにしない。
 lint などが成功終了しても、警告を確認する。今回の変更に起因する警告は、原因を確認して必要最小限の修正を依頼する。
@@ -128,9 +140,9 @@ lint などが成功終了しても、警告を確認する。今回の変更に
 
 ## 6. 完了条件を直接検証する
 
-リポジトリのチェックとは別の工程として、Approved Plan の方法で Work Item の実際の結果を確認する。
-API は実際のリクエスト、CLI は実行、UI は操作など、可能な範囲で実際の入口から新しい動作と維持する動作を観測する。
-テスト / lint が通ったことだけでこの工程を済ませない。期待結果、観測結果、未確認の条件を区別する。
+リポジトリのチェックとは別の工程として、Root が Approved Plan の方法で Work Item の実際の結果を自ら確認する。
+API は実際のリクエスト、CLI は実行、UI は操作など、可能な範囲で承認済みの方法・実際の入口から新しい動作と維持する動作を観測する。section 3 の共通基準に従い、保証に無関係な前後工程まで毎回 full pipeline を再現することとは区別する。
+テスト / lint の成功や Worker の成功報告だけでこの工程を済ませない。Root が期待結果、観測結果、未確認の条件を区別して確認する。
 実行できない場合は理由と代替の根拠を明記する。必須の完了条件が未確認なら止める。
 途中結果の専用保存機構は作らない。
 
@@ -142,6 +154,7 @@ API は実際のリクエスト、CLI は実行、UI は操作など、可能な
 2. **Ponytail Review**: 別の built-in `reviewer`、`context: "fresh"`、`skill: "ponytail-review"`。不要な範囲、抽象化、既存機能や標準機能の再実装を確認する。
 
 両 Reviewer に必要な範囲で Work Item、Approved Plan、実際の差分（参照できるファイルと確認方法を含む）、repository-check results、direct verification results を渡す。
+独立レビュー自体は無条件の全 suite 再実行を意味しない。各 Reviewer は確認した差分・結果・不足とリスクから必要な追加検証を判断し、必要な追加実行は妨げない。
 
 Correctness Review では、テストの成功や観測された挙動だけで、実装が要求に適合していると判断しない。テストの期待値と直接検証の期待結果も、Work Item / Approved Plan の要求動作と照合する。
 Root は、要求の解釈や重要な前提の確認に必要な資料・参照箇所も Correctness Reviewer に渡す。Reviewer は必要に応じてそれらを確認し、Approved Plan に明示された承認済みの変更を考慮する。変更前の資料を無条件に優先しない。
@@ -164,7 +177,7 @@ Root Agent が次を区別して理由を示す。
 Plan の変更が必要なら `REPLAN_REQUIRED` とする。解消できない場合は、既存の停止・失敗状態として原因と再開条件を報告する。
 「過剰実装を避ける」ことを理由に、必要な trust boundary の検証、セキュリティ対策、データ整合性の保護、エラー処理を省略せず、重大な問題を未解決のまま完了扱いにしない。
 採用した指摘は、可能な限り単一の correction request にまとめ、built-in `worker` に同じ境界を守って修正を依頼する。
-修正後は実際の差分を再確認し、影響したチェックと直接検証を再実行する。
+修正後は Root が実際の差分を再確認し、section 3 の共通基準で修正が影響した保証を選び直し、必要なチェックと直接検証を自ら再実行する。共有処理など影響が広い場合は full suite も実行する。変更前の成功を、影響した変更後の保証に流用しない。
 修正の大きさやリスクから必要な場合だけ、影響範囲を fresh `reviewer` で再レビューする。小さい修正に無条件の全レビュー loop を追加しない。
 
 ## 9. 必ず taskflow_code_review を呼ぶ
@@ -174,7 +187,7 @@ Plan の変更が必要なら `REPLAN_REQUIRED` とする。解消できない�
 
 - `status: "skipped"`: Code Review 無効。Plannotator を開かず、この gate は完了を妨げない。2つの自動レビューは省略しない。
 - `status: "approved"` かつ `approved: true`: Code Review 有効時の明示的なユーザー Approve。この結果だけを承認とする。
-- Reject: Root が `feedback` の採否を判断する。設計変更なら `REPLAN_REQUIRED`。範囲内の修正なら Worker にまとめて依頼し、影響したチェック・直接検証と必要な再レビューの後に再提出する。修正後の差分に対する Approve が必要。
+- Reject: Root が `feedback` の採否を判断する。設計変更なら `REPLAN_REQUIRED`。範囲内の修正なら Worker にまとめて依頼し、section 8 の基準で再検証と必要な再レビューを行った後に再提出する。修正後の差分に対する Approve が必要。
 - Cancel、ブラウザを閉じる・放置すること、利用不可、不正な設定・応答、tool エラーは承認ではない。承認待ちやコンポーネント不足なら `BLOCKED`、実行失敗なら `FAILED` とし、成功として終了しない。
 
 ## 10. 最終状態を報告して終了する
