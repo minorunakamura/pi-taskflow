@@ -468,7 +468,7 @@ docs/plans/<slug>.md
 次の処理は prompt-driven `taskflow-to-ticket` に任せる。
 
 - プロジェクトルートの `docs/agents/issue-tracker.md` の直接読み取り・再利用と必要最小限の準備
-- Work Item への分割と実際の blocker の整理
+- ticket Skill §3 の小さい受入れ成果という基準に沿った Work Item 分割と実際の blocker の整理
 - 設定、分割、最終本文・保存先の保存・公開の個別承認（Plan 承認を流用しない）
 - GitHub Issues / Local Markdown への保存・公開と readback
 

@@ -643,7 +643,7 @@ Extension で tracker API、抽象化、ticket 分割、永続 workflow state �
 - 各 Work Item から元になった Approved Plan を参照できること
 - Plan の保証対象・対象外、自動化範囲、確認方法・期待結果、対象別の TDD 採否を維持し、分割側で独自変更しないこと
 - 検証資産の参照・選ぶ機能・必要な作成更新範囲と再実行・検証分担を、正式 Plan 参照と既存の Verification 欄で引き継ぐこと
-- 1回の Implementation タスクで実装し、結果を確認できる大きさを基本とすること
+- 粒度は ticket Skill §3 に従い、実装・検証・Review・人間の受入れまで扱いやすい小さい成果を基準とすること
 
 1つの Planning が Feature でも、そこから作られる Work Item がすべて Feature になるとは限らない。
 
