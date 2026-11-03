@@ -532,6 +532,8 @@ TDD には Matt Pocock の `tdd` Skill を使う。
 
 Planning Root は保証対象、既存検証、必要な追加と自動化・直接確認の範囲を先に選び、その限定対象ごとに TDD 採否を決める。種別別の既定、明示指定・規約の優先、重い自動化の例外条件は [Planning Skill §5](../skills/taskflow-planning/SKILL.md#5-設計と検証方法を固める) に集約する。
 
+Planning は今回関係する検証 Skill・手順・必要な helper・Feature Map の適否・不足と再利用価値を確認し、既存資産を優先して、必要時 Create の必要性と初期対象だけを決める。Planning で資産生成や生成手順の成立確認は行わない。
+
 TDD の有無・適用対象と、使う場合の公開インターフェースを Plan に記載する。非 TDD でも必要なテスト・実動作確認・回帰確認は計画し、テストを最後に一括作成する指定とはしない。
 
 Plannotator で Plan が承認された時点で、そのテスト対象も承認済みとみなす。
@@ -615,6 +617,8 @@ docs/plans/<topic>.md
 
 既存の「動作確認方法」に保証対象・対象外、自動テストと直接確認の範囲・方法・期待結果、対象別の TDD 採否を残す。必要なら追加・拡張しない自動化も明記し、混在作業を一括指定しない。全ケースやテストコードは固定しない。
 
+同じ「動作確認方法」に、検証資産の参照・選ぶ機能・適否と不足・必要な作成更新範囲（必要時 Create の初期対象を含む）、更新後の再実行と Worker / Root の検証分担を残す。
+
 必要な場合だけ次を追加する。
 
 - 設計の詳細
@@ -638,6 +642,7 @@ Extension で tracker API、抽象化、ticket 分割、永続 workflow state �
 
 - 各 Work Item から元になった Approved Plan を参照できること
 - Plan の保証対象・対象外、自動化範囲、確認方法・期待結果、対象別の TDD 採否を維持し、分割側で独自変更しないこと
+- 検証資産の参照・選ぶ機能・必要な作成更新範囲と再実行・検証分担を、正式 Plan 参照と既存の Verification 欄で引き継ぐこと
 - 1回の Implementation タスクで実装し、結果を確認できる大きさを基本とすること
 
 1つの Planning が Feature でも、そこから作られる Work Item がすべて Feature になるとは限らない。
@@ -788,6 +793,7 @@ Approved Plan の関係部分
 Ponytail Extension は常時有効であるため、Worker に `ponytail` Skill を明示的に追加しない。
 
 動作確認方法には Plan の保証対象・対象外、自動化範囲、対象別の TDD 採否と Worker / Root の検証分担を含める。通常のテスト詳細はその範囲内で判断する。
+検証資産の参照・選ぶ機能・必要な作成更新範囲、必要時 Create の初期対象と明示 read、更新後の再実行・証拠・cleanup の担当も渡し、Root の直接確認と分担する。資産編集も同じ cwd の同時 writer を作らない。
 
 TDD が Plan に指定されている対象にだけ、Matt Pocock の `tdd` Skill を追加する。
 
@@ -818,6 +824,10 @@ Plan を変える必要がある場合は Root Agent に戻す。
 ### 20.2 実際の結果
 
 Work Item の完了条件が実際に成立していることを Root が承認済みの方法で確認する。公開境界は full pipeline と同義ではなく、この直接確認を恒久テスト作成義務にしない。必要な安全性・データ整合性・回帰確認を保ち、自動化対象外の結合部分を小さいテストで同等に保証したことにしない。
+
+Implementation は Plan / Work Item の資産参照・対象・範囲と現在の資産を改めて確認し、適切な既存資産を優先する。不足時だけ Approved Plan 内で共通 `create-verification-skill` を明示 read して利用し、必要な Skill が取得できなければ既存の `BLOCKED` 経路を使う。公開入口・対象 repository の cwd・配置・発見・証拠・安全性は [Implementation Skill §3](../skills/taskflow-implementation/SKILL.md#3-現在のコードを確認する) と共通 Skill・対象規約に従い、固定 checkout や独自 wrapper・parser を要求しない。
+関係機能を検証し、変わった手順・helper・Map の関連部分だけ更新して変更した方法を再実行する。`maintain-verification-skill` はユーザーの明示実行のみで、Taskflow からの自動起動や通常更新での必須化、無関係な全 Map 点検をしない。
+Create の少なくとも一機能での成立と Work Item の全完了条件は別であり、資産実行・過去の証拠・Worker 報告で変更後の Root の実入口からの直接確認・採否・最終受入れを代替しない。保証・設計変更は既存の確認・再計画経路へ戻す。
 
 例えば次のように確認する。
 
@@ -954,6 +964,8 @@ Work Item の保存先は `taskflow-to-ticket` が準備するプロジェクト
 - 子 Agent の実行情報
 - Review の下書き
 - 修正用 prompt
+
+共通検証 Skill と対象規約に従う検証資産・証拠の保存は、Taskflow 独自の保存・復旧基盤とは区別する。配置・発見・証拠・安全性は §20.2 の参照先に従い、独自基盤や全証拠 commit・保持期限管理を追加しない。
 
 タスク内部の正確な途中状態を保存して復旧することは v1 の目的にしない。
 

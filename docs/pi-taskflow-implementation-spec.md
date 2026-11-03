@@ -334,6 +334,8 @@ TDD は Matt Pocock の `tdd` Skill を使う。
 
 Planning Root は保証対象、既存検証、必要な追加と自動化・直接確認の範囲を先に選び、その限定対象ごとに TDD 採否を決める。種別別の既定、明示指定・規約の優先、重い自動化の例外条件は [Planning Skill §5](../skills/taskflow-planning/SKILL.md#5-設計と検証方法を固める) に従う。
 
+今回関係する検証 Skill・手順・必要な helper・Feature Map の適否・不足と再利用価値を確認する。適切な既存資産を優先し、必要時 Create の必要性と初期対象を判断するだけとし、Planning で資産生成や生成手順の成立確認は行わない。
+
 Plan には次を記載する。
 
 - 保証対象・対象外、自動テストと直接確認の範囲・方法・期待結果
@@ -401,6 +403,7 @@ Plan には、未確認の推測を確定事項のように書かない。
 ```
 
 既存の「動作確認方法」に §11 の選定結果を残し、混在作業の対象別採否を識別できるようにする。全ケースやテストコードは固定しない。
+検証資産の参照・選ぶ機能・適否と不足・必要な作成更新範囲（必要時 Create の初期対象を含む）、更新後の再実行と Worker / Root の検証分担も同じ欄に残す。
 必要な場合だけ、設計の詳細、テスト方針、リスク、Bug Fix や Performance 固有の情報を追加する。
 
 ---
@@ -472,6 +475,7 @@ docs/plans/<slug>.md
 Extension で tracker API、抽象化、ticket 分割処理、永続 workflow state を再実装しない。AGENTS.md / CLAUDE.md は設定のために作成・変更しない。
 
 各 Work Item から正式な Approved Plan を参照できるようにする。Local の相対リンクは ticket の場所から解決する。Planning の追加制約として、Plan の保証対象・対象外、自動化範囲、確認方法・期待結果、対象別の TDD 採否を維持し、分割側で独自変更しない。
+検証資産の参照・選ぶ機能・必要な作成更新範囲と再実行・検証分担も、正式 Plan 参照と既存の Verification 欄で関係する Work Item に引き継ぐ。
 保存・公開後は参照と承認を確認して停止し、Implementation、Worker、merge / release / deploy を自動開始しない。
 
 ---
@@ -620,6 +624,8 @@ Plan の前提や設計を変える必要がある場合は `REPLAN_REQUIRED` �
 Planning の Scout 出力は引き継がない。
 
 現在の Work Item に必要なコードを改めて確認する。
+Plan / Work Item の資産参照・選ぶ機能・必要な作成更新範囲と、現在の検証 Skill・手順・必要な helper・Feature Map も読み、適切な既存資産を優先する。不足時だけ Approved Plan 内で共通 `create-verification-skill` を明示 read して利用し、必要な Skill を取得できなければ既存の `BLOCKED` 経路を使う。
+公開入口は `/skill:create-verification-skill <対象機能・検証範囲などの自由文>`、検証対象 repository が cwd であり、固定 checkout や独自 wrapper・parser を要求しない。配置・発見・証拠・安全性は [Implementation Skill §3](../skills/taskflow-implementation/SKILL.md#3-現在のコードを確認する) と共通 Skill・対象規約に従い、Taskflow 側で再定義しない。
 
 範囲が広い場合は built-in `scout` を使ってよい。
 
@@ -650,6 +656,7 @@ Approved Plan の関係部分
 Ponytail Extension は常時有効であるため、Worker に `ponytail` Skill を指定しない。
 
 動作確認方法には Plan の保証対象・対象外、自動化範囲、対象別の TDD 採否と Worker / Root の検証分担を含める。通常のテスト詳細はその範囲内で判断する。
+検証資産の参照・選ぶ機能・必要な作成更新範囲、必要時 Create の初期対象と明示 read、更新後の再実行・証拠・cleanup の担当も渡し、Root の直接確認と分担する。資産編集も同じ cwd の同時 writer を作らない。
 
 TDD が Plan に指定されている対象にだけ Matt Pocock の `tdd` Skill を指定し、未指定対象へ広げない。
 
@@ -720,7 +727,9 @@ Refactoring
 → 変更前後で同じ結果になることを確認する
 ```
 
-結果を専用ファイルとして保存することは必須にしない。
+検証資産を使う場合は関係機能を検証し、変わった手順・helper・Map の関連部分だけ更新して変更した方法を再実行する。`maintain-verification-skill` はユーザーの明示実行のみで、Taskflow から自動起動せず、通常更新で必須化したり無関係な全 Map 点検を要求したりしない。
+Create の少なくとも初期対象一機能での成立は、Work Item の全完了条件の確認と区別する。共通 Skill の実行・過去の証拠・Worker 報告で、変更後の Root の実入口からの直接確認・採否・最終受入れを代替しない。保証・設計変更は既存の確認・再計画経路へ戻す。
+Taskflow 独自の途中結果保存基盤や一律の専用結果ファイルは要求しないが、共通 Skill と対象規約に従う証拠保存は行う。Map の手順・期待結果と今回の実行記録は分け、過去の成功を変更後へ流用しない。保存・cleanup・証拠参照確認などは §20 の参照先に従い、独自基盤や全証拠 commit・保持期限管理を追加しない。
 
 ---
 

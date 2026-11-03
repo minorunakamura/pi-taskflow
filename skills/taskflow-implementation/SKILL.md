@@ -72,6 +72,13 @@ Scout の報告のうち、実装方針・変更範囲・既存動作の維持�
 設定ファイルの存在だけで lint / formatter / typecheck コマンドを推測しない。不足する lint / formatter infrastructure を勝手に追加しない。
 Work Item ごとの直接検証方法も確認し、リポジトリのチェックとは区別する。
 
+Plan / Work Item が引き継いだ検証資産の参照・選ぶ機能・必要な作成更新範囲を確認し、現在の検証 Skill・手順・必要な helper・Feature Map を改めて読む。適切な既存資産を優先し、不足時だけ Approved Plan の範囲内で共通 `create-verification-skill` の実ファイルを明示 read して利用する。公開入口は `/skill:create-verification-skill <対象機能・検証範囲などの自由文>`、検証対象 repository が cwd であり、独自 wrapper・parser や固定 checkout を要求しない。必要な Skill を取得できなければ section 2 の `BLOCKED` 経路を使う。
+配置・発見・証拠・安全性の詳細は共通 Skill と対象プロジェクトの規約に従い、Taskflow 側で再定義しない。
+
+- 既存規約がなければ生成先は `.pi/skills/verify-project/`、Map は `references/feature-map.md`。Pi 標準探索と project trust、新セッションまたは `/reload`、明示呼び出しまたは実ファイルの read で利用し、自動選択は保証しない。
+- 証拠は既存規約を優先し、なければ `.pi/verification-evidence/<run>/`。Git 管理対象外を基本に、必要最小限の ignore 更新、秘密情報の取得回避、安全な環境分離、自分が作った環境だけの cleanup と cleanup 後の証拠参照確認を共通契約どおり行う。
+- Map の再利用手順・期待結果と、今回の観測・成否を示す実行記録を区別し、過去の成功を変更後の成功に流用しない。
+
 Planning が選定した Approved Plan の保証対象・対象外、自動化範囲、対象別の TDD 採否を維持し、その範囲内で通常のテスト詳細を判断する。テスト設計・検証には次の共通基準を適用する。
 
 - 要求と具体的な回帰リスクから保証したい動作・失敗を特定し、承認済み seam（公開境界）、必要な前提状態、最小の実用的な検証経路の順に判断する。
@@ -93,6 +100,7 @@ Worker への依頼は現在の Work Item に必要な情報だけとし、次�
 - constraints / out-of-scope items
 - verification method（保証対象・対象外、自動化範囲、対象別の TDD 採否、承認済み seam、整合条件を保った必要な前提状態と検証経路、再利用できる適切な既存テスト、正式なチェックと直接検証方法、期待結果）
 - section 3 の共通基準のうち今回関係する内容と、Worker / Root の検証分担（fresh Worker が基準を既読と仮定せず、内容を渡す）
+- 検証資産の参照・選ぶ機能・必要な作成更新範囲、必要時に明示 read する共通 Create とその初期対象、関係手順・helper・Map の更新後再実行、証拠・cleanup の担当と Root の直接確認との分担
 - relevant facts discovered from the current code（根拠となるファイルと重要事項）
 - 対象 cwd と編集範囲、結果として変更ファイル・実行結果・未解決事項を報告すること
 
@@ -124,7 +132,7 @@ Worker から相談された場合も、Root は通常の実装詳細と未決�
 ユーザーの回答を含め、Approved Plan の前提・仕様・設計を変える必要がある場合は `REPLAN_REQUIRED` として停止する。ユーザーの回答を、改訂 Plan の正式な承認の代わりにしない。
 未決定のユーザー判断が残る間は `BLOCKED` とし、開始・続行しない。再計画後は正式な Approved Plan と、それに整合する Work Item を確認してから再開する。
 
-Worker 実行中は同じファイルを別の writer が変更しない。失敗や部分実装を成功扱いせず、Root が実際の差分と結果を確認する。
+検証資産の作成・更新も担当を明示し、同じ cwd に同時 writer を作らない。Worker 実行中は同じファイルを別の writer が変更しない。失敗や部分実装を成功扱いせず、Root が実際の差分と結果を確認する。
 
 ## 5. リポジトリのチェックを行う
 
@@ -145,7 +153,9 @@ API は実際のリクエスト、CLI は実行、UI は操作など、可能な
 テスト / lint の成功や Worker の成功報告だけでこの工程を済ませない。Root が期待結果、観測結果、未確認の条件を区別して確認する。
 この直接確認を恒久テストや新しいテスト用プログラムの作成義務に変えず、Plan の承認済みの方法を使う。
 実行できない場合は理由と代替の根拠を明記する。必須の完了条件が未確認なら止める。
-途中結果の専用保存機構は作らない。
+検証資産を使う場合は今回関係する機能を実行し、変わった手順・helper・Map の関連部分だけ更新して、変更した検証方法も再実行する。`maintain-verification-skill` はユーザーの明示実行に限定し、Taskflow から自動起動せず、通常の関連更新に Maintain や無関係な全 Map 点検を要求しない。
+Create 自体は少なくとも初期対象の一機能で生成手順の成立を確認するが、それだけで Work Item の全完了条件を満たしたとはしない。共通 Skill の実行・過去の証拠・Worker 報告で、変更後の Root による実際の入口からの直接確認・採否・最終受入れを代替しない。保証・設計の変更が必要なら section 4 の確認・再計画経路へ戻る。
+Taskflow 独自の途中結果保存基盤は作らない。共通 Skill と対象規約に従う検証証拠の保存はこれと区別し、通常テスト・正式チェック・使い捨て Probe を一律に資産化したり、全証拠の commit や保持期限管理を追加したりしない。
 
 ## 7. 独立した2つの fresh Review を行う
 
