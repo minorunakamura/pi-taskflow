@@ -157,25 +157,45 @@ API は実際のリクエスト、CLI は実行、UI は操作など、可能な
 Create 自体は少なくとも初期対象の一機能で生成手順の成立を確認するが、それだけで Work Item の全完了条件を満たしたとはしない。共通 Skill の実行・過去の証拠・Worker 報告で、変更後の Root による実際の入口からの直接確認・採否・最終受入れを代替しない。保証・設計の変更が必要なら section 4 の確認・再計画経路へ戻る。
 Taskflow 独自の途中結果保存基盤は作らない。共通 Skill と対象規約に従う検証証拠の保存はこれと区別し、通常テスト・正式チェック・使い捨て Probe を一律に資産化したり、全証拠の commit や保持期限管理を追加したりしない。
 
-## 7. 独立した2つの fresh Review を行う
+## 7. 独立した2つの fresh Review を並行起動する
 
-動作確認後、別々の新しいコンテキストで次の両方を実行する。Worker の self-review で置き換えない。
+動作確認後、別々の fresh context の built-in `reviewer` を、一方の結果を待たずに並行起動する。直列化、一人への統合、Worker の self-review で置き換えない。
 
-1. **Correctness Review**: built-in `reviewer`、`context: "fresh"`。完了条件、Approved Plan との整合、不具合・回帰、テストと直接検証の不足を確認する。
-2. **Ponytail Review**: 別の built-in `reviewer`、`context: "fresh"`、`skill: "ponytail-review"`。不要な範囲、抽象化、既存機能や標準機能の再実装を確認する。
+1. **Correctness Review**: 完了条件、Approved Plan との整合、不具合・回帰、テストと直接検証の不足、および期待結果自体の正式要求との整合を確認する。
+2. **Ponytail Review**: この Reviewer だけに `ponytail-review` を明示指定し、不要な範囲、抽象化、既存機能や標準機能の再実装を確認する。
 
-両 Reviewer に必要な範囲で Work Item、Approved Plan、実際の差分（参照できるファイルと確認方法を含む）、repository-check results、direct verification results を渡す。Plan の保証対象・対象外、自動化範囲、対象別の TDD 採否と検証分担も含める。
+両 Reviewer に必要な範囲で Work Item、Approved Plan、要求の解釈や重要な前提に関係する設計・仕様等の資料と参照箇所、対象 cwd、実際の差分（参照できるファイルと確認方法を含む）、Root の正式な repository-check results、直接検証の期待結果・観測結果・証拠と未確認範囲を渡す。Plan の保証対象・対象外、自動化範囲、対象別の TDD 採否（非 TDD を含む）と Worker / Root の検証分担も含める。
+
+独立した2回の非同期 `subagent` 呼び出しを基本とし、具体的な引数配置は導入済み `pi-subagents` の公開 Skill / guide で確認する。`context` / `skill` が `options` 内の導入版では、上記の入力と各責務を `task` に含め、次の2呼び出しを一方の結果を待たずに行う。
+
+```js
+subagent({
+  agent: "reviewer",
+  task: "必要な正式入力・関係資料・差分・Root の検証結果を含む Correctness Review 依頼。原則 read-only。",
+  options: { context: "fresh" },
+  async: true
+})
+subagent({
+  agent: "reviewer",
+  task: "同じ必要入力を含む Ponytail Review 依頼。提示された ponytail-review の実ファイルを read して利用し、その参照と確認結果を報告する。原則 read-only。",
+  options: { context: "fresh", skill: "ponytail-review" },
+  async: true
+})
+```
+
+named `parallel.args.tasks[]` に `skill` / `context` を入れない。scripted workflow を使う場合も公開 API に従い、`workflow: true` と `options.script` を併用しない。専用 wrapper・Agent 定義・workflow ファイルは追加しない。
+`skill` 指定は Skill の metadata / path を子に提示するもので、本文の利用を自動的に保証しない。Root は既存の起動記録・child 情報・結果から、別 run・両方の fresh・一方を待たない両起動と、Ponytail 側だけの Skill 解決・提示、および実ファイルの read と利用を確認する。未解決は warning のみで起動する場合があるため、起動成功だけで済ませない。
 独立レビュー自体は無条件の全 suite 再実行を意味しない。各 Reviewer は確認した差分・結果・不足とリスクから必要な追加検証を判断し、必要な追加実行は妨げない。
 
 Correctness Review では、テストの成功や観測された挙動だけで、実装が要求に適合していると判断しない。テストの期待値と直接検証の期待結果も、Work Item / Approved Plan の要求動作と照合する。
-Root は、要求の解釈や重要な前提の確認に必要な資料・参照箇所も Correctness Reviewer に渡す。Reviewer は必要に応じてそれらを確認し、Approved Plan に明示された承認済みの変更を考慮する。変更前の資料を無条件に優先しない。
+Reviewer は必要に応じて関係資料を確認し、Approved Plan に明示された承認済みの変更を考慮する。変更前の資料を無条件に優先しない。
 
 Reviewer は原則コードを変更せず、根拠のある指摘を Root Agent に返す。Worker の自己申告だけを入力や成功の証拠にしない。
-Reviewer から Worker に直接修正を指示させない。レビューの実行失敗や未取得の結果を「指摘なし」と扱わない。
+Reviewer から Worker に直接修正を指示させない。Root は両方の結果を取得する。起動・実行失敗、結果未取得、Ponytail の Skill 未解決を「指摘なし」と扱わず、片方だけで Code Review gate に進まない。不足や失敗は既存の `BLOCKED` / `FAILED` 経路で理由と再開条件を報告する。
 
 ## 8. Root が指摘を整理して修正する
 
-Review 指摘は、そのまま修正仕様や範囲拡大の許可にはならない。
+Root は両方の Review 結果を取得した後に指摘の採否と必要な修正・再検証を判断する。Review 指摘は、そのまま修正仕様や範囲拡大の許可にはならない。
 Root は採用前に、今回の完了条件、維持すべき既存動作、安全性・データ整合性との関係を確認し、問題を解消するために必要な最小の修正範囲を判断する。
 その関係は具体的な影響と根拠で確認する。「安全側」という理由だけで、今回使わない情報の検証や対象外の問題解決へ範囲を広げない。検証不足の指摘は不足する具体的な保証に結び付け、一般論で重い自動化を追加しない。対象外の自動化や Plan の保証・設計の変更が必要なら section 4 の確認・再計画手順へ戻る。
 完了条件に明記されていない既存動作の回帰や security・データ整合性の問題も、具体的な関係と根拠があれば修正対象として判断する。
@@ -194,7 +214,7 @@ Plan の変更が必要なら `REPLAN_REQUIRED` とする。解消できない�
 
 ## 9. 必ず taskflow_code_review を呼ぶ
 
-自動レビューと必要な修正・再確認が完了した後、最終完了の前に Root が `taskflow_code_review` を呼ぶ。
+両方の自動レビュー結果を取得し、Root の採否判断、必要な修正・影響に応じた再検証と必要時の再レビューが完了した後、最終完了の前に Root が `taskflow_code_review` を呼ぶ。
 この tool が Pi の有効な `taskflow.plannotatorCodeReview` 設定を内部で解決するため、独自の設定読み込みや `taskflow_config` tool を作らない。未設定時は有効で、明示的な `false` の場合のみ無効になる。
 
 - `status: "skipped"`: Code Review 無効。Plannotator を開かず、この gate は完了を妨げない。2つの自動レビューは省略しない。
