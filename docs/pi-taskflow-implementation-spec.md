@@ -123,7 +123,7 @@ Ponytail Extension は Pi で常時有効になっている前提とする。
 
 Worker に `ponytail` Skill を追加しない。
 
-Review では `ponytail-review` Skill を明示的に使用する。
+独立2 Reviewer のうち Ponytail Reviewer だけに `ponytail-review` Skill を明示指定し、解決・提示と実ファイルの read・利用を確認する。Correctness Reviewer には指定しない。
 
 ### 3.5 pi-ask-user-question
 
@@ -495,8 +495,8 @@ Extension で tracker API、抽象化、ticket 分割処理、永続 workflow st
 6. Worker に実装を依頼する
 7. リポジトリのチェックを行う
 8. Work Item の結果を実際に確認する
-9. Correctness Review と Ponytail Review を行う
-10. Root Agent が指摘を判断する
+9. 別々の fresh reviewer で Correctness / Ponytail Review を一方の結果を待たず並行起動する（Skill 指定は Ponytail のみ）
+10. 両結果取得後、Root Agent が指摘の採否と必要な修正・再検証を判断する
 11. 必要なら修正を1回分まとめて依頼する
 12. 影響した確認を再実行する
 13. 必要なら再レビューする
@@ -735,7 +735,9 @@ Taskflow 独自の途中結果保存基盤や一律の専用結果ファイル�
 
 ## 24. Review
 
-動作確認後は、原則として2つの fresh review を行う。
+動作確認後、別々の fresh context の built-in `reviewer` を、一方の結果を待たずに並行起動する。直列化、一人への統合、Worker の self-review で置き換えない。
+
+独立した2回の非同期 `subagent` 呼び出しを基本とし、導入済み `pi-subagents` の公開 Skill / guide に従って fresh と Skill 指定を子ごとに分離する。`options` 内に配置する導入版ではその形式を使う（具体例は Implementation Skill §7）。named `parallel.args.tasks[]` に `skill` / `context` を入れず、`workflow: true` と `options.script` を併用しない。専用 wrapper・Agent 定義・workflow ファイルは追加しない。
 
 ### 24.1 Correctness Review
 
@@ -746,31 +748,34 @@ Taskflow 独自の途中結果保存基盤や一律の専用結果ファイル�
 - Work Item の完了条件を満たしているか
 - Approved Plan に反していないか
 - 不具合や回帰がないか
-- テストや動作確認に不足がないか
+- テストや直接検証に不足がないか
+- テストの期待値と直接検証の期待結果自体が Work Item / Approved Plan の正式要求に整合するか（成功や観測結果だけで判断しない）
 
 ### 24.2 Ponytail Review
 
-別の fresh `reviewer` に `ponytail-review` Skill を指定する。
+この fresh `reviewer` だけに `ponytail-review` Skill を明示指定し、提示された実ファイルを read して利用させる。
 
-過剰な実装、不要な抽象化、既存機能や標準機能で置き換えられるコードなどを確認する。
+過剰な実装、不要な抽象化、既存機能や標準機能で置き換えられるコードなどを確認する。Root は既存の起動記録・child 情報・結果から、別 run・両方の fresh・一方を待たない両起動と、Ponytail 側だけの Skill 解決・提示および read・利用を確認する。Skill 未解決は warning のみで起動する場合があるため、起動成功だけで済ませない。
 
 ### 24.3 Reviewer への入力
 
 両方の Reviewer に必要な範囲で次を渡す。
 
 ```text
-Work Item
-Approved Plan
-実際の差分
-チェック結果
-実際の動作確認結果
+正式な Work Item / Approved Plan
+要求の解釈・重要な前提に関係する設計・仕様等の資料と参照箇所
+対象 cwd、実際の差分とその確認方法
+Root の正式なリポジトリチェック結果
+直接検証の期待結果・観測結果・証拠と未確認範囲
 ```
 
-Plan の保証対象・対象外、自動化範囲、対象別の TDD 採否と検証分担も渡す。検証不足は具体的な保証に結び付け、一般論で重い自動化を追加しない。
+Plan の保証対象・対象外、自動化範囲、対象別の TDD 採否（非 TDD を含む）と Worker / Root の検証分担も渡す。承認済みの変更を考慮し、変更前の資料を無条件に優先しない。検証不足は具体的な保証に結び付け、一般論で重い自動化を追加しない。
 
 Worker の自己申告だけを根拠にしない。
 
 Reviewer は原則としてコードを変更しない。
+
+Root は両方の結果を取得する。起動・実行失敗、結果未取得、Ponytail の Skill 未解決を「指摘なし」と扱わず、片方だけで Code Review gate に進まない。不足や失敗は既存の `BLOCKED` / `FAILED` 経路で理由と再開条件を報告する。
 
 ---
 
@@ -778,7 +783,7 @@ Reviewer は原則としてコードを変更しない。
 
 Reviewer の指摘を直接 Worker に渡さない。
 
-Root Agent が両方の Review 結果をまとめ、各指摘について判断する。
+Root Agent は両方の Review 結果を取得した後にまとめ、各指摘の採否と必要な修正・再検証を判断する。
 
 最低限、次を区別する。
 
@@ -803,6 +808,8 @@ Root Agent が両方の Review 結果をまとめ、各指摘について判断�
 ## 26. taskflow_code_review
 
 Extension は `taskflow_code_review` tool を登録する。
+
+両方の自動レビュー結果の取得、Root の採否判断、必要な修正・影響に応じた再検証と必要時の再レビューを終えてから、Root が呼ぶ。
 
 この tool が `taskflow.plannotatorCodeReview` の有効値を内部で確認する。
 
@@ -994,8 +1001,9 @@ Refactoring Playbook
 Performance Playbook
 共通フロー
 チェック失敗
-Correctness Review + Ponytail Review
-Reviewer 指摘 → 修正
+別々の fresh Correctness / Ponytail Review の並行起動（Ponytail のみ Skill 解決・提示・利用）
+両結果取得 → Root の採否 → 必要な修正・再検証・再レビュー → taskflow_code_review
+片方の起動失敗・結果未取得・Skill 未解決で停止
 REPLAN_REQUIRED
 Plannotator Code Review 有効
 ```

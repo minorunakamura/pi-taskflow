@@ -119,18 +119,18 @@ Worker
 動作確認
       │
       ▼
-Correctness Review
-+
-Ponytail Review
+Correctness / Ponytail Review
+別々の fresh reviewer を並行起動
+Ponytail のみ ponytail-review Skill
       │
       ▼
-Root Agent が結果を整理
+両結果取得後、Root Agent が採否を判断
       │
       ▼
-必要なら修正
+必要なら修正・影響に応じた再検証・再レビュー
       │
       ▼
-必要なら Plannotator Code Review
+taskflow_code_review（有効なら明示 Approve）
       │
       ▼
 END
@@ -278,7 +278,7 @@ Ponytail Extension は Pi で常時有効になっている前提とする。
 
 `pi-taskflow` は Worker に `ponytail` Skill を明示的に追加しない。
 
-コードレビュー時には Ponytail が提供する `ponytail-review` Skill を明示的に利用する。
+独立2 Reviewer のうち Ponytail Reviewer だけに `ponytail-review` Skill を明示指定し、解決・提示と実ファイルの read・利用を確認する。Correctness Reviewer には指定しない。
 
 ### 5.5 pi-ask-user-question
 
@@ -855,7 +855,7 @@ Refactoring
 
 ## 21. Review と修正
 
-動作確認後は、原則として2つの fresh review を行う。
+動作確認後、別々の fresh context の built-in `reviewer` を、一方の結果を待たずに並行起動する。直列化、一人への統合、Worker の self-review で置き換えない。
 
 ```text
 Correctness Review
@@ -866,13 +866,19 @@ Ponytail Review
     + ponytail-review Skill
 ```
 
-両方の Reviewer は実際の差分と動作確認結果に加え、Plan の保証対象・対象外、自動化範囲、対象別の TDD 採否と検証分担を見る。検証不足は具体的な保証に結び付け、一般論で重い自動化を追加しない。対象外自動化や Plan の保証・設計の変更が必要なら既存の確認・再計画経路へ戻る。
+Correctness は要求適合、不具合・回帰、検証不足に加え、テストと直接検証の期待結果自体を正式要求と照合する。Ponytail は不要な範囲・抽象化・既存機能の再実装などを確認し、この Reviewer だけに `ponytail-review` を明示指定する。
+
+両方に正式な Work Item・Approved Plan と関係する設計・仕様等の資料・参照箇所、対象 cwd、実際の差分と確認方法、Root の正式チェック結果、直接検証の期待結果・観測結果・証拠と未確認範囲を渡す。Plan の保証対象・対象外、自動化範囲、対象別の TDD 採否（非 TDD を含む）と Worker / Root の検証分担も渡し、原則 read-only とする。検証不足は具体的な保証に結び付け、一般論で重い自動化を追加しない。対象外自動化や Plan の保証・設計の変更が必要なら既存の確認・再計画経路へ戻る。
+
+独立した2回の非同期 `subagent` 呼び出しを基本とし、導入済み `pi-subagents` の公開 Skill / guide に従って fresh と Skill 指定を子ごとに分離する。`options` 内に配置する導入版ではその形式を使う（具体例は Implementation Skill §7）。named `parallel.args.tasks[]` に `skill` / `context` を入れず、`workflow: true` と `options.script` を併用しない。専用 wrapper・Agent 定義・workflow ファイルは追加しない。
+
+Root は既存の起動記録・child 情報・結果から、別 run・両方の fresh・一方を待たない両起動、Ponytail 側だけの Skill 解決・提示と実ファイルの read・利用を確認する。Skill 未解決が warning のみでも、起動成功を利用確認の代わりにしない。起動・実行失敗、結果未取得、Skill 未解決を「指摘なし」と扱わず、片方だけで gate に進まない。不足や失敗は既存の停止経路で理由と再開条件を報告する。
 
 Worker の自己申告だけを根拠にしない。
 
 Reviewer の指摘を直接 Worker に渡さない。
 
-Root Agent が結果をまとめ、各指摘について次を判断する。
+Root Agent は両方の結果を取得してからまとめ、各指摘の採否と必要な修正・再検証を判断する。
 
 ```text
 今回直す
@@ -894,7 +900,7 @@ Root Agent が結果をまとめ、各指摘について次を判断する。
 
 ## 22. Plannotator Code Review
 
-自動レビューは必須とする。
+両方の自動レビュー結果の取得、Root の採否判断、必要な修正・影響に応じた再検証と必要時の再レビューを終えてから、Root が `taskflow_code_review` を呼ぶ。
 
 Plannotator Code Review は設定で有効・無効を切り替える。
 
