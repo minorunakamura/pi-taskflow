@@ -925,6 +925,12 @@ FAILED
 
 Root Agent が最終回答で状態と理由を明確にする。
 
+どの工程の `BLOCKED` でも、停止理由・未充足条件に加え、「再開するときは、このセッションの Pi に次を送ってください」と案内し、コピー可能な再開プロンプトを必ず提示する。具体化規則と雛形は [Implementation Skill §10](../skills/taskflow-implementation/SKILL.md#10-最終状態を報告して終了する) に従う。確認済みの cwd・Work Item 参照と未確定点を区別し、対象識別前は元入力と対象確認の依頼、判断待ちは必要な問いを残す。URL・Plan・回答・解消結果を捏造せず、既知値の補完やコード確認・検証作業をユーザーに求めない。
+
+提示・送信だけで回答・承認・依存解消とせず、同じ Root セッションの Pi が現在の Work Item・Approved Plan・作業ツリーと条件の解消を確認する。充足時のみ停止箇所から続行し、未充足なら `BLOCKED` を維持する。未コミット変更・部分実装を保持し、独断の commit / stash / 破棄や、影響した変更前のチェック・Review・Approve の流用はしない。
+
+同セッションでの `BLOCKED` 再開と、失敗後の新セッションでの再実行を区別し、`FAILED` の定義は変えない。再確認で正式 Plan の変更が必要なら、既存の `REPLAN_REQUIRED` の別 Planning セッション案内と、Planning 完了後の Implementation kickoff 契約を維持する。自動再開・再試行・常駐待機・復旧状態・追加 gate は作らない。
+
 ---
 
 ## 30. 呼び出し方法
@@ -979,6 +985,8 @@ Skill を直接利用する。
 Skill と Playbook は、細かい unit test より実際のシナリオで確認する。検証範囲を先に選ぶ判断、混在対象別の TDD 採否、Plan → Work Item → Worker / Review での範囲維持、直接確認と恒久自動化の区別を照合する。文書の机上照合や loader 成功を、実 Agent の実行遵守や時間削減の証明にしない。
 
 検証資産判断の契約は、既存手段が充足する場合、一度だけの利用でも操作・観測手段が不足する場合、Plan が「Create の予定なし」でも実装時に不足が判明する場合、明示禁止・規約・既存 Plan 制約がある場合、共通 Skill / 権限不足と保証変更、関連更新・再実行と Create 成立の分離を一次文書で照合する。Plan の通常承認から正式 Plan / Work Item の Verification、Root の採否と Worker への対象・検証・証拠・cleanup 分担まで、最小補完裁量と限界が維持されるか確認する。この照合と loader 成功は、実 Agent による採否・Create・後続再利用の E2E 実証とは区別する。
+
+BLOCKED 再開の契約は、対象識別前、判断・依存・承認・コンポーネント待ち、部分実装後の条件解消、再確認で Plan 変更が必要な場合と FAILED を一次文書で照合する。§29 と Implementation Skill §10 の同セッション Pi 向け案内、具体値と未確定点、送信だけでは解消としないこと、未充足時の停止維持、変更保持、過去のチェック・Review・Approve の非流用、既存 REPLAN_REQUIRED / kickoff 契約を確認する。この照合と loader 成功は、実 Root による BLOCKED 出力・プロンプト送信・再開遵守の E2E 実証とは区別する。
 
 Planning:
 
