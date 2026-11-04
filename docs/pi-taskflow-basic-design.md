@@ -532,7 +532,7 @@ TDD には Matt Pocock の `tdd` Skill を使う。
 
 Planning Root は保証対象、既存検証、必要な追加と自動化・直接確認の範囲を先に選び、その限定対象ごとに TDD 採否を決める。種別別の既定、明示指定・規約の優先、重い自動化の例外条件は [Planning Skill §5](../skills/taskflow-planning/SKILL.md#5-設計と検証方法を固める) に集約する。
 
-Planning は今回関係する検証 Skill・手順・必要な helper・Feature Map の適否・不足と再利用価値を確認し、既存資産を優先して、必要時 Create の必要性と初期対象だけを決める。Planning で資産生成や生成手順の成立確認は行わない。
+検証資産の採否は、別の Agent が会話履歴なしで、今回必要な実動作検証の起動・操作・期待結果との照合・証拠取得・cleanup まで実行できる手段の充足から判断する。Planning は既存の検証 Skill・具体的な手順・必要な helper / harness・Feature Map の適否・不足を確認し、既存手段を優先して、不足時の最小 Create の必要性・初期対象・関連更新範囲だけを計画する。資産生成や生成手順の成立確認は行わない。小規模、通常テストや起動コマンドの存在、恒久 E2E 不採用、反復利用の予定なしだけでは不採用にしない。充足時の重複生成や通常テスト・探索 Probe の一律資産化は要求しない。判断基準の本体は Planning Skill §5 に置く。
 
 TDD の有無・適用対象と、使う場合の公開インターフェースを Plan に記載する。非 TDD でも必要なテスト・実動作確認・回帰確認は計画し、テストを最後に一括作成する指定とはしない。
 
@@ -617,7 +617,8 @@ docs/plans/<topic>.md
 
 既存の「動作確認方法」に保証対象・対象外、自動テストと直接確認の範囲・方法・期待結果、対象別の TDD 採否を残す。必要なら追加・拡張しない自動化も明記し、混在作業を一括指定しない。全ケースやテストコードは固定しない。
 
-同じ「動作確認方法」に、検証資産の参照・選ぶ機能・適否と不足・必要な作成更新範囲（必要時 Create の初期対象を含む）、更新後の再実行と Worker / Root の検証分担を残す。
+同じ「動作確認方法」に、検証資産の参照・選ぶ機能・適否と不足・必要な作成更新範囲（必要時 Create の初期対象を含む）、更新後の再実行と Worker / Root の検証・証拠・cleanup の分担を残す。
+今後の Plan には、Implementation Root が現在の手段を再確認し、承認済みの保証対象・対象外・期待結果を維持する最小の Create / 関連更新を判断できる裁量と限界を含め、通常の Plan Review で承認する。「Create の予定なし」は見込みであって禁止ではなく、採否変更や未予定の Skill / helper 追加だけでは再計画・追加承認にしない。ただし明示禁止・規約・既存 Approved Plan の制約を上書きせず、正式 Plan の制約・保証・期待結果、製品の公開契約・仕様・設計の変更が必要なら既存の確認・REPLAN_REQUIRED 経路を使う。共通 Skill / 権限不足だけなら BLOCKED とし、独自代替や無断 install で回避しない。
 
 必要な場合だけ次を追加する。
 
@@ -642,7 +643,7 @@ Extension で tracker API、抽象化、ticket 分割、永続 workflow state �
 
 - 各 Work Item から元になった Approved Plan を参照できること
 - Plan の保証対象・対象外、自動化範囲、確認方法・期待結果、対象別の TDD 採否を維持し、分割側で独自変更しないこと
-- 検証資産の参照・選ぶ機能・必要な作成更新範囲と再実行・検証分担を、正式 Plan 参照と既存の Verification 欄で引き継ぐこと
+- 検証資産の参照・選ぶ機能・適否と不足・必要な作成更新範囲と再実行・検証・証拠・cleanup の分担、§14 の最小補完裁量と限界を、正式 Plan 参照と既存の Verification 欄で引き継ぐこと。単なる「Create の予定なし」を作成禁止へ強めず、明示禁止・制約とは区別すること
 - 粒度は ticket Skill §3 に従い、実装・検証・Review・人間の受入れまで扱いやすい小さい成果を基準とすること
 
 1つの Planning が Feature でも、そこから作られる Work Item がすべて Feature になるとは限らない。
@@ -793,7 +794,7 @@ Approved Plan の関係部分
 Ponytail Extension は常時有効であるため、Worker に `ponytail` Skill を明示的に追加しない。
 
 動作確認方法には Plan の保証対象・対象外、自動化範囲、対象別の TDD 採否と Worker / Root の検証分担を含める。通常のテスト詳細はその範囲内で判断する。
-検証資産の参照・選ぶ機能・必要な作成更新範囲、必要時 Create の初期対象と明示 read、更新後の再実行・証拠・cleanup の担当も渡し、Root の直接確認と分担する。資産編集も同じ cwd の同時 writer を作らない。
+検証資産の参照・選ぶ機能・適否と不足、Root が判断した最小の作成更新範囲とその裁量・制約、必要時 Create の初期対象と実ファイルの明示 read、更新後の再実行・検証・証拠・cleanup の担当も渡し、Root の直接確認と分担する。採否・範囲判断は Root が保持し、Worker は未予定の不足や制約との衝突を Root に返す。資産編集も同じ cwd の同時 writer を作らない。
 
 TDD が Plan に指定されている対象にだけ、Matt Pocock の `tdd` Skill を追加する。
 
@@ -825,9 +826,9 @@ Plan を変える必要がある場合は Root Agent に戻す。
 
 Work Item の完了条件が実際に成立していることを Root が承認済みの方法で確認する。公開境界は full pipeline と同義ではなく、この直接確認を恒久テスト作成義務にしない。必要な安全性・データ整合性・回帰確認を保ち、自動化対象外の結合部分を小さいテストで同等に保証したことにしない。
 
-Implementation は Plan / Work Item の資産参照・対象・範囲と現在の資産を改めて確認し、適切な既存資産を優先する。不足時だけ Approved Plan 内で共通 `create-verification-skill` を明示 read して利用し、必要な Skill が取得できなければ既存の `BLOCKED` 経路を使う。公開入口・対象 repository の cwd・配置・発見・証拠・安全性は [Implementation Skill §3](../skills/taskflow-implementation/SKILL.md#3-現在のコードを確認する) と共通 Skill・対象規約に従い、固定 checkout や独自 wrapper・parser を要求しない。
+Implementation Root は Plan / Work Item の資産参照・対象・範囲と現在の手段を改めて確認し、§11 の充足基準で適切な既存手段を優先する。手段不足なら未予定でも §14 の裁量と限界を守って最小の Create / 関連更新を判断する。使い捨て操作コードで不足を補う場合も資産化の必要性を判断するが、全試行の保存は要求しない。共通 `create-verification-skill` の実ファイルを明示 read して利用し、共通 Skill / 権限不足だけなら `BLOCKED` とする。公開入口・対象 repository の cwd・配置・発見・証拠・安全性は [Implementation Skill §3](../skills/taskflow-implementation/SKILL.md#3-現在のコードを確認する) と共通 Skill・対象規約に従い、固定 checkout や独自 wrapper・parser を要求しない。
 関係機能を検証し、変わった手順・helper・Map の関連部分だけ更新して変更した方法を再実行する。`maintain-verification-skill` はユーザーの明示実行のみで、Taskflow からの自動起動や通常更新での必須化、無関係な全 Map 点検をしない。
-Create の少なくとも一機能での成立と Work Item の全完了条件は別であり、資産実行・過去の証拠・Worker 報告で変更後の Root の実入口からの直接確認・採否・最終受入れを代替しない。保証・設計変更は既存の確認・再計画経路へ戻す。
+Create の少なくとも初期対象の一機能での成立と Work Item の全完了条件は別であり、資産実行・過去の証拠・Worker 報告で変更後の Root の実入口からの直接確認・採否・最終受入れを代替しない。保証・設計変更は既存の確認・再計画経路へ戻す。
 
 例えば次のように確認する。
 
