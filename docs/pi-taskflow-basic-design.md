@@ -976,7 +976,11 @@ Work Item の保存先は `taskflow-to-ticket` が準備するプロジェクト
 
 タスク内部の正確な途中状態を保存して復旧することは v1 の目的にしない。
 
-Implementation が途中で失敗した場合は、Approved Plan と Work Item から新しいセッションで再実行できることを優先する。
+Implementation の通常の `BLOCKED` は、失敗後の新セッションでの再実行と区別する。どの工程の `BLOCKED` でも、最終回答に停止理由・未充足条件と、同じ Root セッションの Pi に送るコピー可能な再開プロンプトを示す。確認済みの cwd・Work Item 参照と未確定点を区別し、対象識別前は元入力と対象確認の依頼、判断待ちは必要な問いを残す。具体化規則・文面は [Implementation Skill §10](../skills/taskflow-implementation/SKILL.md#10-最終状態を報告して終了する) に従う。
+
+提示・送信を回答・承認・依存解消の証拠にせず、Pi が現在の Work Item・Approved Plan・作業ツリーと条件の解消を確認し、充足時だけ停止箇所から続行する。未充足なら停止を維持する。未コミット変更・部分実装を保持し、独断で commit / stash / 破棄せず、影響した変更前のチェック・Review・Approve を変更後に流用しない。
+
+Implementation が途中で失敗した場合は、Approved Plan と Work Item から新しいセッションで再実行できることを優先する。`FAILED` の定義は変えず、通常の `BLOCKED` に新セッションを一律に要求しない。正式 Plan の変更が必要なら、既存の `REPLAN_REQUIRED` の別 Planning セッション案内と、Planning 完了後の Implementation kickoff 契約に従う。自動再開・再試行・常駐待機・復旧状態・追加 gate は作らない。
 
 ---
 
