@@ -63,12 +63,14 @@ const modelRegistry = new ModelRegistry(
 const observe = (pi: ExtensionAPI) => ({
   register: vi.spyOn(pi, "registerTool"),
   on: vi.spyOn(pi, "on"),
+  commands: vi.spyOn(pi, "registerCommand"),
 });
 
 export async function registerTaskflow(
   events: EventBus,
   cwd: string,
   value?: unknown,
+  factory: typeof taskflow = taskflow,
 ) {
   const settingsManager = SettingsManager.inMemory(reviewSettings(value));
   const getSettings = vi.fn(() => settingsManager.getSettings());
@@ -88,7 +90,7 @@ export async function registerTaskflow(
       extensionFactories: [
         (pi) => {
           spies = observe(pi);
-          taskflow({ ...pi, getSettings });
+          factory({ ...pi, getSettings });
         },
       ],
     });
@@ -108,6 +110,7 @@ export async function registerTaskflow(
       getSettings,
       settingsManager,
       context: runner.createToolContext("call-1", undefined),
+      commandContext: runner.createCommandContext(),
       shutdown: () => runner.emit({ type: "session_shutdown", reason: "quit" }),
     };
   } finally {

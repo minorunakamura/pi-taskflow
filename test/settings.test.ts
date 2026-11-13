@@ -3,7 +3,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { SettingsManager } from "@earendil-works/pi-coding-agent";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { codeReviewEnabled } from "../src/settings.ts";
+import { codeReviewSettings } from "../src/settings.ts";
+
+const codeReviewEnabled = (
+  settings: Parameters<typeof codeReviewSettings>[0],
+) => codeReviewSettings(settings).enabled;
 
 let dir: string;
 let cwd: string;
@@ -30,6 +34,13 @@ const setting = (value: unknown) => ({
 });
 const enabled = (trusted = true) =>
   codeReviewEnabled(
+    SettingsManager.create(cwd, agentDir, {
+      projectTrusted: trusted,
+    }).getSettings(),
+  );
+
+const resolved = (trusted = true) =>
+  codeReviewSettings(
     SettingsManager.create(cwd, agentDir, {
       projectTrusted: trusted,
     }).getSettings(),
@@ -172,6 +183,61 @@ describe("taskflow.codeReviewEnabled through Pi SettingsManager", () => {
       expect(codeReviewEnabled(settings)).toBe(value ?? true);
       expect(settings).toEqual(before);
       expect(settings).toHaveProperty("subagents", subagents);
+    },
+  );
+});
+
+describe("taskflow.codeReviewProvider through Pi SettingsManager", () => {
+  it("defaults to Plannotator and ignores legacy getters", () => {
+    expect(resolved()).toEqual({ enabled: true, provider: "plannotator" });
+    const settings = {
+      ...SettingsManager.inMemory().getSettings(),
+      taskflow: { codeReviewProvider: undefined },
+    };
+    Object.defineProperty(settings.taskflow, "plannotatorCodeReview", {
+      get() {
+        throw new Error("must not read");
+      },
+    });
+    expect(codeReviewSettings(settings)).toEqual({
+      enabled: true,
+      provider: "plannotator",
+    });
+  });
+  it.each(["plannotator", "tuicr"])(
+    "resolves %s with disabled and legacy settings without mutation",
+    (provider) => {
+      configure({
+        taskflow: {
+          codeReviewEnabled: false,
+          codeReviewProvider: provider,
+          plannotatorCodeReview: "invalid",
+        },
+      });
+      const settings = SettingsManager.create(cwd, agentDir).getSettings();
+      const before = structuredClone(settings);
+      expect(codeReviewSettings(settings)).toEqual({
+        enabled: false,
+        provider,
+      });
+      expect(settings).toEqual(before);
+    },
+  );
+  it("uses trusted project override and ignores untrusted project provider", () => {
+    configure(
+      { taskflow: { codeReviewProvider: "tuicr" } },
+      { taskflow: { codeReviewProvider: "plannotator" } },
+    );
+    expect(resolved().provider).toBe("plannotator");
+    expect(resolved(false).provider).toBe("tuicr");
+  });
+  it.each([false, true, null, 1, [], {}, "unknown"])(
+    "rejects invalid provider even while disabled: %j",
+    (codeReviewProvider) => {
+      configure({ taskflow: { codeReviewEnabled: false, codeReviewProvider } });
+      expect(() => resolved()).toThrow(
+        'Invalid taskflow.codeReviewProvider setting: expected "plannotator" or "tuicr".',
+      );
     },
   );
 });

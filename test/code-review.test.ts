@@ -347,6 +347,30 @@ describe("taskflow_code_review tool", () => {
     expect(receive).not.toHaveBeenCalled();
   });
 
+  it.each(["tuicr", "plannotator", "invalid"])(
+    "validates provider %s even when disabled and starts neither provider",
+    async (codeReviewProvider) => {
+      const events = createEventBus();
+      const receive = provider(events);
+      const { execute, settingsManager } = await registerTool(events);
+      const settings = {
+        ...reviewSettings(),
+        taskflow: { codeReviewEnabled: false, codeReviewProvider },
+      };
+      settingsManager.applyOverrides(settings);
+      if (codeReviewProvider === "invalid")
+        await expect(execute()).rejects.toThrow(
+          "Invalid taskflow.codeReviewProvider",
+        );
+      else
+        expect(await execute()).toMatchObject({
+          details: { status: "skipped", approved: false },
+          isError: false,
+        });
+      expect(receive).not.toHaveBeenCalled();
+    },
+  );
+
   it("marks failures as tool errors", async () => {
     const events = createEventBus();
     provider(events, { status: "error", error: "Review failed." });

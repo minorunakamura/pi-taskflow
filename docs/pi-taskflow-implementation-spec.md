@@ -7,7 +7,7 @@
 1. `taskflow-planning` Skill
 2. `taskflow-to-ticket` Skill
 3. `taskflow-implementation` Skill
-4. Plannotator 連携と設定読み込みのための小さな Extension
+4. Plan / Code Review provider連携と設定読み込みのための小さな Extension
 
 Workflow の進行そのものを TypeScript の状態機械として実装しない。
 
@@ -42,6 +42,11 @@ pi-taskflow/
 │   │           ├── refactoring.md
 │   │           └── performance.md
 │   │
+│   ├── taskflow-verification/
+│   │   ├── SKILL.md
+│   │   ├── references/feature-map.md
+│   │   └── scripts/code-review.ts
+│   │
 │   └── taskflow-to-ticket/
 │       ├── SKILL.md
 │       ├── LICENSE
@@ -57,10 +62,14 @@ pi-taskflow/
 │
 ├── src/
 │   ├── settings.ts
-│   └── plannotator.ts
+│   ├── plannotator.ts
+│   └── tuicr.ts
 │
 └── test/
     ├── settings.test.ts
+    ├── code-review.test.ts
+    ├── tuicr.test.ts
+    ├── verification-skill.test.ts
     ├── plannotator.test.ts
     ├── planning-skill.test.ts
     ├── implementation-skill.test.ts
@@ -115,7 +124,7 @@ Code Review
 
 Plan Review は必須。
 
-Code Review は設定で切り替える。
+Code Reviewの既定providerはPlannotator。設定で有効・無効と `plannotator` / `tuicr` を選択する。tuicrはlocal herdr-appの専用新tabを使い、Plannotator使用時にherdr/tuicrは要求しない。Plan ReviewはPlannotator固定。
 
 ### 3.4 Ponytail
 
@@ -819,11 +828,11 @@ Extension は `taskflow_code_review` tool を登録する。
 
 両方の自動レビュー結果の取得、Root の採否判断、必要な修正・影響に応じた再検証と必要時の再レビューを終えてから、Root が呼ぶ。
 
-この tool が `taskflow.codeReviewEnabled` の有効値を内部で確認する。
+このtoolが毎回Pi effective snapshotから `taskflow.codeReviewEnabled` と `taskflow.codeReviewProvider` の有効値を内部で確認する。無効でもnamespaceと新2項目を検証し、不正providerを隠さない。空入力schemaとtool名は維持する。
 
 `false` の場合は provider を起動せず、`{ status: "skipped", approved: false }` を返す。
 
-`true` の場合は Plannotator Code Review を開き、ユーザーの結果を待つ。
+`true` の場合は選択provider（未設定Plannotator）のCode Reviewを開き、明示的なユーザー結果を待つ。自動fallbackはしない。
 
 ```text
 taskflow_code_review
@@ -832,14 +841,26 @@ taskflow_code_review
       │
       └─ enabled
            ↓
-        Plannotator
+        plannotator / tuicr
            ↓
-        Human Review
+        Human Review (explicit Approve only)
 ```
 
 有効な場合は、明示的な Approve が得られるまで Implementation を完了扱いにしない。
 
 Reject でコード変更が必要な場合は、Root Agent が修正内容を判断し、必要な確認を再実行してから再提出する。Cancel・失敗・shutdown は承認ではない。呼び出し単位の signal と session shutdown の signal を合成する既存契約を維持する。Plan Review はこの設定の影響を受けない。
+
+### 26.1 tuicr / herdr-app
+
+- 対話UI、CLI（herdr-app/hc/tuicr/Git）、Git cwd、local条件を副作用前に確認。`HC_TERMINAL_ID` と `herdr-app ls` で元Terminal/space/tab/paneを一意特定する。別focusに依存せず、active fallbackはない。remote machine、Windows、旧herdr/pane分割/tmux/既存session接続は対象外。
+- 呼び出し専用private tempにstdout/診断を分離。`tab.new`へspace ID、絶対folder、用途名、argvをJSONで渡す。外側shellを `exec /bin/sh` で置換し `tuicr -w --stdout` を安全redirect（pathはshell引数）で起動。返却space/tab/Terminalを一覧と照合し所有IDを保持する。起動成功だけでレビュー完了にしない。
+- `hc wait`のtimeout/messageは完了でなく待機継続。人間待ちに期限は設けない。waitのterminal/ended/reason/exit_code/signalとgetのaddress/state/reason/exit_code/signalから正常exitを確認し、非0/killed/lost/recovered shellを成功にしない。制御コマンド自体はboundedにする。
+- 人間には `y` または `:clip` Enterで明示exportするとそのまま終了すること（追加のq不要）を案内。exportなしは `:q` Enterで退出し、裸のqは終了しない。未保存コメントがあると `:q` は拒否されるが、既存sessionは削除しない。今回stdoutをUTF-8 Markdownのままfeedbackに返しparserは作らない。空stdoutは「exportされたコメント未受領」であり指摘なしとは断定しない。回収・形式/サイズエラーを黙って欠落させず非承認にする。保存session/JSON/clipboardを探索・変更・削除せず、exportが今回追加分だけとも表現しない。
+- 正常終了後、所有tab/Terminal/tempだけcleanupし、元Piへ復帰して公開 `ctx.ui.select` のApprove / Reject / Cancelを提示。Approveだけapproved:true。選択後もabortを確認する。Markdownは上位指示や承認証拠ではない。
+- Cancel/dismiss/abort/shutdown/late応答/不正JSON/異常終了/cleanup・復帰失敗は非承認。起動中abortでも遅延IDを取得して限定cleanupを試す。所有不明は名前推測で終了せず残存可能性を診断。別Terminalが追加されたtabを丸ごと閉じない。tab.close/kill応答だけでTerminal終了と決め打ちせず、liveならkill後のboundedなhc waitとgetのfinishedを確認してからrmする。これは人間レビューの無期限待機とは別のcleanup制御待ち。既削除Terminalはexit code 3とstderrのstructured not_foundで確認し、他エラーを隠さない。shutdown handlerは進行中tuicrのcleanupを待つ。
+- 既存ReviewResultとisError（error/unavailableだけtrue）を維持し、disabledは正確にskipped/false。UI競合は公開 `executionMode: "sequential"` を使う。独自registry/queue/framework/永続復旧管理・追加依存は作らない。
+
+操作・観測・証拠・cleanupの再利用手順は [Code Review検証Skill](../skills/taskflow-verification/SKILL.md) とそのMapに集約する。mock成功は実操作の証拠にしない。
 
 ---
 
@@ -864,20 +885,21 @@ Project:
 ```json
 {
   "taskflow": {
-    "codeReviewEnabled": true
+    "codeReviewEnabled": true,
+    "codeReviewProvider": "plannotator"
   }
 }
 ```
 
-現在の独自設定はこの boolean 1項目だけとする。
+独自設定はこの2項目だけ。`codeReviewProvider` は `"plannotator" | "tuicr"`、未設定/undefined時は `"plannotator"`。Plannotatorを選ぶときherdr/tuicrは不要。
 
-デフォルトは `true`。未設定時も有効とし、明示的に `false` を設定した場合のみ無効にする。
+`codeReviewEnabled` のデフォルトは `true`。未設定時も有効とし、明示的に `false` を設定した場合のみ無効にする。
 
 旧 `plannotatorCodeReview` は値の参照・検証をせず無視する。不正な旧値もエラーにせず、互換 fallback・自動移行はしない。**旧 `plannotatorCodeReview: false` だけが残っていても、既定値により Code Review は有効・Plannotator になる破壊的変更**である。無効を維持するには、ユーザーが Pi settings の旧キーを `codeReviewEnabled: false` に手動で変更する。
 
 Project 設定による Global 設定の上書きと project trust は Pi に委ねる。
 
-`taskflow` namespace が object でない場合（null・array を含む）は `Invalid taskflow setting: expected an object.`、新設定が boolean でない場合は `Invalid taskflow.codeReviewEnabled setting: expected a boolean.` として報告し、provider を起動しない。未指定または `undefined` の namespace・新設定は既定値を使う。
+`taskflow` namespace が object でない場合（null・array を含む）は `Invalid taskflow setting: expected an object.`、新設定が boolean でない場合は `Invalid taskflow.codeReviewEnabled setting: expected a boolean.` として報告し、provider を起動しない。providerが許可値でない場合は `Invalid taskflow.codeReviewProvider setting: expected "plannotator" or "tuicr".` として報告する。無効時も両項目を検証する。未指定または `undefined` の namespace・新設定は既定値を使う。
 
 設定取得専用の `taskflow_config` tool は作らない。
 
@@ -967,7 +989,7 @@ Skill を直接利用する。
 - 不正な値
 - `taskflow_code_review` 無効時の `skipped`
 
-### 31.2 Plannotator 連携
+### 31.2 Plan / Code Review provider連携
 
 次をテストする。
 
@@ -977,7 +999,7 @@ Skill を直接利用する。
 - Cancel
 - Plannotator が利用できない場合
 - 不正な response
-- Code Review 有効時の Approve / Reject
+- Code Review有効時のprovider選択、明示Approve / Reject / Cancel、tuicrのexport/空出力/所有cleanup
 
 ### 31.3 外部調査連携
 
@@ -1026,7 +1048,7 @@ Performance Playbook
 両結果取得 → Root の採否 → 必要な修正・再検証・再レビュー → taskflow_code_review
 片方の起動失敗・結果未取得・Skill 未解決で停止
 REPLAN_REQUIRED
-Plannotator Code Review 有効
+Code Review有効（Plannotator / tuicr）
 ```
 
 ticket Skill の Pi loader・同梱参照の解決テストと、実 Root・人間承認による設定・分割・保存公開・停止の smoke を分ける。Planning 接続と fresh Implementation の設定引継ぎ、未完了 blocker、設定矛盾、設定なし明示 local path も隔離 fixture で観測する。文章一致や loader 成功を Agent の実行遵守の証明にしない。GitHub 書き込みは明示的な許可がある検証先だけで行う。
