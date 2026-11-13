@@ -226,7 +226,8 @@ Plan の変更が必要なら `REPLAN_REQUIRED` とする。解消できない�
 ## 9. 必ず taskflow_code_review を呼ぶ
 
 両方の自動レビュー結果を取得し、Root の採否判断、必要な修正・影響に応じた再検証と必要時の再レビューが完了した後、最終完了の前に Root が `taskflow_code_review` を呼ぶ。
-この tool が Pi の有効な `taskflow.plannotatorCodeReview` 設定を内部で解決するため、独自の設定読み込みや `taskflow_config` tool を作らない。未設定時は有効で、明示的な `false` の場合のみ無効になる。
+この tool が呼び出しごとに Pi の有効な `taskflow.codeReviewEnabled`（boolean）設定を内部で解決するため、独自の設定読み込みや `taskflow_config` tool を作らない。未設定時は有効で Plannotator を使い、明示的な `false` の場合のみ無効になる。Plan Review はこの設定の影響を受けない。
+旧 `plannotatorCodeReview` は値の参照・検証をせず無視する。旧 `false` だけが残っていても有効になる破壊的変更のため、無効を維持するユーザーは Pi settings の旧キーを `codeReviewEnabled: false` に手動で変更する。互換 fallback・自動移行・旧値エラーはない。
 
 - `status: "skipped"`: Code Review 無効。Plannotator を開かず、この gate は完了を妨げない。2つの自動レビューは省略しない。
 - `status: "approved"` かつ `approved: true`: Code Review 有効時の明示的なユーザー Approve。この結果だけを承認とする。

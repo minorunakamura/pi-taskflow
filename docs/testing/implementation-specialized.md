@@ -10,11 +10,13 @@ Issue #7 の Bug Fix + TDD / Refactoring / Performance を、別々の新しい�
 - Bug Fix + TDD は、既存 Plan が TDD 不採用なので、そのまま TDD を追加しない。CLI を対象とする TDD を明示したテスト用 Plan を実際の Plannotator に提出し、人間の明示的な Approve 後に承認された全文を保存する。
 - 各 fixture の local ticket から `docs/plans/approved.md` を参照する。実装・テスト・直接検証を1件とし、依存なし、未決定判断なし、Plan の Planning 成果物作成は対象外とする。ticket は Implementation のテスト入力であり、同梱 `taskflow-to-ticket` の分割・公開 workflow の再テストではない。設定なしの明示 local path として取得する。設定があるケースの引継ぎ・直接参照・矛盾 gate は [Feature Implementation smoke](implementation-feature.md) で別に確認する。
 - fixture のみで Git baseline を記録する。署名設定がない場合は、その baseline commit だけ `commit.gpgsign=false` を指定する。global 設定や本リポジトリを変更しない。
-- Code Review は設定なしのデフォルト無効。実際の `taskflow_code_review` の `skipped` を確認する。有効な gate の人間参加確認は [Feature Implementation smoke](implementation-feature.md) を参照する。
+- Code Review は各所有 fixture の `.pi/settings.json` に `taskflow.codeReviewEnabled: false` を明示して無効化する。`--approve` で fixture の project 設定を信頼し、実際の `taskflow_code_review` が `{ status: "skipped", approved: false }` を返して Plannotator が起動しないことを確認する。未設定や旧 `plannotatorCodeReview: false` だけでは有効になる。手動変更方法と有効な gate の人間参加確認は [Feature Implementation smoke](implementation-feature.md) を参照する。
 
 ```sh
 TASKFLOW_REPO=/absolute/path/to/pi-taskflow
 cd "$SMOKE_DIR"
+mkdir -p .pi
+printf '%s\n' '{"taskflow":{"codeReviewEnabled":false}}' > .pi/settings.json
 pi --mode json --approve -e "$TASKFLOW_REPO" \
   --skill "$TASKFLOW_REPO/skills/taskflow-implementation" \
   --session-dir "$SMOKE_DIR/sessions" \
@@ -63,6 +65,8 @@ Plan Review が必要な準備は人間が参加できる TUI / RPC で行う。
 
 専門種別に当てはまらない Work Item は引き続き共通 Skill の手順を使う。`generic` Playbook や workflow state machine は追加しない。
 実行結果は日時、Pi / model、承認の根拠、fixture / ログ、チェック、直接検証、両 Review、最終状態、未確認の分岐を区別して記録する。runtime artifacts は一時領域に限定する。
+
+以下は当時の記録であり、現在の `codeReviewEnabled` 設定の成功証拠ではない。
 
 ## 2026-10-08 の実行結果
 

@@ -912,9 +912,9 @@ Root Agent は両方の結果を取得してからまとめ、各指摘の採否
 
 Plannotator Code Review は設定で有効・無効を切り替える。
 
-デフォルトは有効とする。明示的に `false` を設定した場合のみ無効にする。
+`taskflow.codeReviewEnabled` のデフォルトは有効とする。明示的に `false` を設定した場合のみ無効にし、provider を起動せず `{ status: "skipped", approved: false }` を返す。
 
-有効な場合は、Plannotator の承認が得られるまで完了扱いにしない。
+有効な場合は、Plannotator の明示的な Approve が得られるまで完了扱いにしない。Reject は Root の判断・必要な修正・再検証・再提出に戻る。Cancel・失敗・shutdown は承認ではない。Plan Review はこの設定の影響を受けない。
 
 ---
 
@@ -935,12 +935,14 @@ Project
 ```json
 {
   "taskflow": {
-    "plannotatorCodeReview": true
+    "codeReviewEnabled": true
   }
 }
 ```
 
-v1 の独自設定はこの1項目だけとする。
+現在の独自設定はこの boolean 1項目だけとする。未設定時は `true`。
+
+旧 `plannotatorCodeReview` は値の参照・検証をせず無視する。互換 fallback、自動移行、旧値エラーはない。**旧 `plannotatorCodeReview: false` だけが残っていても Code Review が有効になる破壊的変更**である。無効を維持するには、ユーザーが Pi settings の旧キーを `codeReviewEnabled: false` に手動で変更する。
 
 Agent の model や thinking level は `subagents` 側で設定する。
 
@@ -948,7 +950,7 @@ Work Item の保存先は `taskflow-to-ticket` が準備するプロジェクト
 
 設定取得専用の `taskflow_config` tool は作らない。
 
-設定が必要な処理が Extension 内部で Pi の有効な設定を読み込む。
+設定が必要な処理が Extension 内部で、呼び出しごとに `pi.getSettings()` から Pi の有効な SettingsManager snapshot を取得する。Project による Global の上書きと project trust は Pi に委ね、snapshot は変更しない。`taskflow` namespace が object でない場合や新設定が boolean でない場合は明確な設定エラーとする。
 
 ---
 

@@ -37,9 +37,9 @@ export type Request = ReturnType<typeof readRequest>;
 
 export function reviewSettings(value?: unknown) {
   const settings: ReturnType<ExtensionAPI["getSettings"]> & {
-    taskflow?: { plannotatorCodeReview: unknown };
+    taskflow?: { codeReviewEnabled: unknown };
   } = {
-    ...(value !== undefined && { taskflow: { plannotatorCodeReview: value } }),
+    ...(value !== undefined && { taskflow: { codeReviewEnabled: value } }),
   };
   return settings;
 }

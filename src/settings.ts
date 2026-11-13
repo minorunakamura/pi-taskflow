@@ -14,15 +14,15 @@ export function codeReviewEnabled(
     throw new Error("Invalid taskflow setting: expected an object.");
   }
   if (
-    !("plannotatorCodeReview" in taskflow) ||
-    taskflow.plannotatorCodeReview === undefined
+    !("codeReviewEnabled" in taskflow) ||
+    taskflow.codeReviewEnabled === undefined
   ) {
     return true;
   }
-  const value = taskflow.plannotatorCodeReview;
+  const value = taskflow.codeReviewEnabled;
   if (typeof value !== "boolean") {
     throw new Error(
-      "Invalid taskflow.plannotatorCodeReview setting: expected a boolean.",
+      "Invalid taskflow.codeReviewEnabled setting: expected a boolean.",
     );
   }
   return value;

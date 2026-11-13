@@ -26,7 +26,7 @@ function configure(global: unknown, project?: unknown) {
 }
 
 const setting = (value: unknown) => ({
-  taskflow: { plannotatorCodeReview: value },
+  taskflow: { codeReviewEnabled: value },
 });
 const enabled = (trusted = true) =>
   codeReviewEnabled(
@@ -35,7 +35,7 @@ const enabled = (trusted = true) =>
     }).getSettings(),
   );
 
-describe("taskflow.plannotatorCodeReview through Pi SettingsManager", () => {
+describe("taskflow.codeReviewEnabled through Pi SettingsManager", () => {
   it("defaults to true with no settings files", () => {
     expect(enabled()).toBe(true);
   });
@@ -45,7 +45,7 @@ describe("taskflow.plannotatorCodeReview through Pi SettingsManager", () => {
     const missingNamespace = { ...settings, taskflow: undefined };
     const missingValue = {
       ...settings,
-      taskflow: { plannotatorCodeReview: undefined },
+      taskflow: { codeReviewEnabled: undefined },
     };
     expect(codeReviewEnabled(missingNamespace)).toBe(true);
     expect(codeReviewEnabled(missingValue)).toBe(true);
@@ -58,6 +58,40 @@ describe("taskflow.plannotatorCodeReview through Pi SettingsManager", () => {
   ])("defaults to true when the setting is absent: %j", (config) => {
     configure(config);
     expect(enabled()).toBe(true);
+  });
+
+  it.each([false, true, "invalid", null, 0, [], {}])(
+    "ignores the legacy setting, including invalid values: %j",
+    (plannotatorCodeReview) => {
+      configure({ taskflow: { plannotatorCodeReview } });
+      expect(enabled()).toBe(true);
+    },
+  );
+
+  it.each([false, true])(
+    "uses the new value %s even with an invalid legacy value",
+    (value) => {
+      configure({
+        taskflow: {
+          codeReviewEnabled: value,
+          plannotatorCodeReview: "invalid",
+        },
+      });
+      expect(enabled()).toBe(value);
+    },
+  );
+
+  it("does not access the legacy value in the effective snapshot", () => {
+    const settings = {
+      ...SettingsManager.inMemory().getSettings(),
+      taskflow: {},
+    };
+    Object.defineProperty(settings.taskflow, "plannotatorCodeReview", {
+      get() {
+        throw new Error("Legacy value must not be read.");
+      },
+    });
+    expect(codeReviewEnabled(settings)).toBe(true);
   });
 
   it.each([false, true])("reads the Global value %s", (value) => {
@@ -102,13 +136,15 @@ describe("taskflow.plannotatorCodeReview through Pi SettingsManager", () => {
   it.each(["true", "false", 0, 1, null, [], {}])(
     "rejects invalid boolean values in either trusted scope: %j",
     (value) => {
-      configure(setting(value));
+      configure({
+        taskflow: { codeReviewEnabled: value, plannotatorCodeReview: false },
+      });
       expect(() => enabled()).toThrow(
-        "Invalid taskflow.plannotatorCodeReview setting: expected a boolean.",
+        "Invalid taskflow.codeReviewEnabled setting: expected a boolean.",
       );
       configure(setting(false), setting(value));
       expect(() => enabled()).toThrow(
-        "Invalid taskflow.plannotatorCodeReview setting: expected a boolean.",
+        "Invalid taskflow.codeReviewEnabled setting: expected a boolean.",
       );
     },
   );
@@ -123,13 +159,19 @@ describe("taskflow.plannotatorCodeReview through Pi SettingsManager", () => {
     },
   );
 
-  it("does not change Agent model or thinking-level settings", () => {
-    const subagents = { model: "owned-by-subagents", thinking: "high" };
-    configure({ ...setting(true), subagents });
-    const settings = SettingsManager.create(cwd, agentDir).getSettings();
-    const before = structuredClone(settings);
-    expect(codeReviewEnabled(settings)).toBe(true);
-    expect(settings).toEqual(before);
-    expect(settings).toHaveProperty("subagents", subagents);
-  });
+  it.each([undefined, false, true])(
+    "does not mutate the snapshot or migrate legacy settings with new value %s",
+    (value) => {
+      const subagents = { model: "owned-by-subagents", thinking: "high" };
+      configure({
+        taskflow: { codeReviewEnabled: value, plannotatorCodeReview: false },
+        subagents,
+      });
+      const settings = SettingsManager.create(cwd, agentDir).getSettings();
+      const before = structuredClone(settings);
+      expect(codeReviewEnabled(settings)).toBe(value ?? true);
+      expect(settings).toEqual(before);
+      expect(settings).toHaveProperty("subagents", subagents);
+    },
+  );
 });
