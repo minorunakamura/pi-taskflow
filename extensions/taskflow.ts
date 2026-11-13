@@ -5,11 +5,17 @@ import {
   reviewPlan,
   type ReviewResult,
 } from "../src/plannotator.ts";
-import { codeReviewEnabled } from "../src/settings.ts";
+import { codeReviewSettings } from "../src/settings.ts";
+import { reviewTuicr } from "../src/tuicr.ts";
 
 export default function taskflow(pi: ExtensionAPI) {
   const shutdown = new AbortController();
-  pi.on("session_shutdown", () => shutdown.abort());
+  let pendingTuicr: Promise<ReviewResult> | undefined;
+  pi.on("session_shutdown", async () => {
+    shutdown.abort();
+    // Pi awaits shutdown handlers; finish owned-resource cleanup before it exits.
+    await pendingTuicr;
+  });
 
   pi.registerTool(
     defineTool({
@@ -41,17 +47,25 @@ export default function taskflow(pi: ExtensionAPI) {
       name: "taskflow_code_review",
       label: "Taskflow Code Review",
       description:
-        "Review current code changes in Plannotator by default. If taskflow.codeReviewEnabled is explicitly false in Pi settings, return skipped without opening Plannotator. When enabled, Implementation is complete only after explicit Approve. On Reject, the Root Agent must decide what to fix, recheck, and resubmit. Cancel or failure is not approval; cancel in Pi to stop waiting.",
+        "Review current code changes using taskflow.codeReviewProvider (plannotator by default, or tuicr in a dedicated local herdr-app tab). If taskflow.codeReviewEnabled is false, return skipped without starting either provider. For tuicr, press y or type :clip then Enter to export and exit (no extra q); without export use :q then Enter, which refuses unsaved comments. Decide approval in Pi. When enabled, Implementation is complete only after explicit Approve. On Reject, the Root Agent must decide what to fix, recheck, and resubmit. Cancel or failure is not approval; cancel in Pi to stop waiting.",
       parameters: Type.Object({}),
+      executionMode: "sequential",
       async execute(_toolCallId, _params, signal, _onUpdate, ctx) {
-        const result: ReviewResult | { status: "skipped"; approved: false } =
-          codeReviewEnabled(pi.getSettings())
-            ? await reviewCode(
-                pi.events,
-                ctx.cwd,
-                AbortSignal.any([shutdown.signal, ...(signal ? [signal] : [])]),
-              )
-            : { status: "skipped", approved: false };
+        const settings = codeReviewSettings(pi.getSettings());
+        const reviewSignal = AbortSignal.any([
+          shutdown.signal,
+          ...(signal ? [signal] : []),
+        ]);
+        let result: ReviewResult | { status: "skipped"; approved: false };
+        if (!settings.enabled) result = { status: "skipped", approved: false };
+        else if (settings.provider === "tuicr") {
+          pendingTuicr = reviewTuicr(ctx, reviewSignal);
+          try {
+            result = await pendingTuicr;
+          } finally {
+            pendingTuicr = undefined;
+          }
+        } else result = await reviewCode(pi.events, ctx.cwd, reviewSignal);
         return {
           content: [{ type: "text", text: JSON.stringify(result) }],
           details: result,

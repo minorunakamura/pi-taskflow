@@ -41,27 +41,13 @@ pi --mode json --approve -e "$TASKFLOW_REPO" \
 `--continue` / `--resume` / `--fork` は使わない。command に渡す ticket は実際の生成物から選び、依存なし・判断確定済みの Feature Work Item であることを実行前に読む。設定が絶対パスを含むなど、別 fixture へのコピーと矛盾する場合は黙って更新せず、ticket Skill で変更内容を実ユーザーに確認してから準備し直す。
 Code Review を有効にした試行や、ユーザー確認待ちになる停止試行では TUI または RPC を使う。有効な gate の確認は別の所有 fixture で新キーを `true` にするか省略し、実ユーザーが Plannotator で Approve する。無効設定のまま承認を模擬しない。print / JSON の UI 制約は Planning smoke を参照する。
 
-## Code Review 設定の単独確認
+## Code Review 設定・providerの単独確認
 
-これは設定と Code Review tool の直接確認であり、上記の全 Implementation workflow を再実行する手順ではない。承認済み Plan / ticket や子 Agent を用意せず、実際の `taskflow_code_review` を呼ぶ。
+全Implementation workflowを再実行せず、実際の `taskflow_code_review` を所有する隔離Git fixture / 空agentdir / sessiondirで直接呼ぶ手順は [Code Review検証Skill](../../skills/taskflow-verification/SKILL.md) と [Feature Map](../../skills/taskflow-verification/references/feature-map.md) に集約する。導入済みPlannotator entryの明示ロード、`PI_CODING_AGENT_DIR` / `--session-dir` / `--approve` による所有fixtureのtrust、Global非変更、TUIまたは公開RPCの条件は維持する。model不要の小command helperは実source/実Pi UI/実providerへ接続し、承認を模擬しない。
 
-1. リポジトリ外に所有する一時ディレクトリを作り、その中の Git fixture に `review.txt` の baseline と識別可能な1行の差分を用意する。レビュー中はこの差分を変更しない。別途、空の agent directory と session directory を試行ごとに用意し、`PI_CODING_AGENT_DIR` と `--session-dir` で指定する。既存の Global settings を変更せず、他 session をコピー／転用しない。`--continue` / `--resume` / `--fork` は使わない。
-2. `TASKFLOW_REPO` を検証する実ソース checkout、`PLANNOTATOR_EXTENSION` を導入済み Plannotator の Extension entry の絶対パスにする。導入版の公開 CLI / API を確認し、下記の TUI または `--mode rpc` を付けた公開 RPC 入口を使う。依存不足なら理由と再開条件を報告し、無断 install や共有環境変更で補わない。model が必要なら利用許可済みの認証手段だけを使い、秘密値をコマンド記録・証拠へ含めない。
-
-```sh
-# FIXTURE / AGENT_DIR / SESSION_DIR は今回所有する一時ディレクトリの絶対パス
-cd "$FIXTURE"
-PI_CODING_AGENT_DIR="$AGENT_DIR" pi --approve --no-extensions --no-skills \
-  -e "$TASKFLOW_REPO/extensions/taskflow.ts" -e "$PLANNOTATOR_EXTENSION" \
-  --session-dir "$SESSION_DIR"
-```
-
-`--approve` は所有 fixture の project trust にだけ使い、Code Review の承認と混同しない。実 source の Taskflow と導入済み Plannotator を明示ロードし、別 checkout や模擬 provider の結果で代用しない。
-
-3. **新 false**: 隔離 agent directory の `settings.json` は `{}`、fixture の `.pi/settings.json` は `{"taskflow":{"codeReviewEnabled":false}}` にする。起動後に「コードや設定を変更せず、`taskflow_code_review` を空引数で1回呼び、その実応答を報告する」と依頼する。実 tool 結果が正確に `{ status: "skipped", approved: false }` であり、Plannotator のレビュー要求・browser / server 起動がないことを確認する。必要なら今回の EventBus の `plannotator:request` を観測する小さい接続 Probe で要求0件を確認してよい。tool を呼ばずに model が説明しただけでは合格にしない。
-4. **新キー省略**: false 試行の所有 Pi を終了してから、fixture の `.pi/settings.json` を `{}` にする。別の空の agent directory（`settings.json` は `{}`）と session directory で新しい Pi を起動し、同じ tool を呼ぶ。実 Plannotator に fixture の1行差分が表示され、実ユーザーの Approve 前には tool が未完了・未承認であることを観測する。実ユーザーが browser で Approve した後、実 tool の `status: "approved", approved: true` を確認する。接続 Probe は許容するが、模擬応答・承認イベント注入・自動 Approve・「承認した」という申告を承認の代替にしない。Reject / Cancel / error は成功に数えず、未確認と実施結果を区別する。
-5. 証拠は fixture 外の `$TASKFLOW_REPO/.pi/verification-evidence/<run>/` に残す。日時、Pi / Plannotator version、Taskflow の revision と dirty 状態、実際にロードした source、所有 fixture、各試行の設定・session の識別、操作、期待と実 tool 結果、無起動または表示・承認前後の観測、未確認範囲を必要最小限記録する。秘密値・他 session 情報・raw log 全量は保存しない。この単独確認を全 Implementation E2E 成功と報告しない。
-6. 証拠を保存後、今回所有する Pi を終了し、所有レビューの終了と残存物を確認する。他の Pi / browser / server を一括終了しない。所有 fixture・隔離 settings / sessions・一時 Probe のみ cleanup し、残存や cleanup 失敗は報告する。最後に fixture 外の証拠が残り読み戻せることを確認する。
+- 未設定/`plannotator`は既存Plannotator、`tuicr`は呼び出し元と同じlocal herdr-app spaceの専用新tab。`codeReviewEnabled: false`は正確にskipped/falseで両provider無起動。無効時も新providerを検証し、不正値を隠さない。
+- tuicrではworking treeのstaged/unstaged/小untracked、明示exportと同時終了（`y` または `:clip` Enter、追加q不要）→所有cleanup→元Pi→Approve / Reject / Cancelを観測する。exportなしの退出は `:q` Enter（裸のqは終了せず、未保存コメントがあると `:q` は拒否される。既存sessionは削除しない）。空stdoutはコメント未受領で、正常終了やexportから承認を推論しない。待機中abort/shutdown/dismiss、Rejectと再提出、既定Plannotatorの実人手ApproveもMapで別caseとして扱う。
+- 証拠はfixture外のignored `.pi/verification-evidence/<run>/`。開始・今回export・Pi判断・実結果・限定cleanupを最小記録し、fixture削除後にも読み戻す。秘密/無関係な他tab/raw log全量は保存しない。過去の成功やmockは今回の直接確認の代替にしない。
 
 ## 観測と合格条件
 
@@ -92,7 +78,7 @@ fixture の `.pi/subagents`、sessions、ログは一時領域の runtime artifa
 - チェックや直接検証の失敗を隠して `READY_FOR_MERGE` にしない。
 - Code Review 有効時は実際のユーザーが明示的に Approve するまで完了しない。Reject の採否は Root が判断し、修正後に必要な確認と再提出を行う。Cancel / unavailable / error は承認ではない。
 
-Code Review の設定解決と Approve / Reject / Cancel / unavailable / error の tool contract は既存の `settings.test.ts`、`code-review.test.ts`、`plannotator.test.ts` でも確認する。これは有効な gate の人間参加 E2E とは区別する。
+Code Review の設定解決と Approve / Reject / Cancel / unavailable / error の tool contract は既存の `settings.test.ts`、`code-review.test.ts`、`plannotator.test.ts` でも確認する。tuicrの小process/UI境界は `tuicr.test.ts` で補完する。これは有効なgateの人間参加直接確認とは区別する。
 
 ## tracker 引継ぎと開始 gate の再現手順（Issue #17）
 

@@ -42,17 +42,18 @@ it("loads taskflow-to-ticket as an explicit Skill and resolves its bundled refer
   }
 });
 
-it("loads all three Taskflow Skills without name collisions from the package skills convention", () => {
+it("loads all four Taskflow Skills without name collisions from the package skills convention", () => {
   const dir = fileURLToPath(new URL("../skills/", import.meta.url));
   const { skills, diagnostics } = loadSkillsFromDir({ dir, source: "test" });
 
   expect(diagnostics).toEqual([]);
-  expect(skills).toHaveLength(3);
+  expect(skills).toHaveLength(4);
   expect(skills.map((skill) => skill.name)).toEqual(
     expect.arrayContaining([
       "taskflow-implementation",
       "taskflow-planning",
       "taskflow-to-ticket",
+      "taskflow-verification",
     ]),
   );
 });

@@ -268,7 +268,7 @@ pi-ketch.researcher
 次のユーザー承認に利用する。
 
 - Planning の Plan Review
-- 設定で有効にした場合の Code Review
+- 有効な Code Review の既定provider（tuicr選択時はherdr-app連携。Plan ReviewはPlannotator固定）
 
 Plan Review では Plannotator Plan Mode に切り替えず、完成した Plan を `plan-review` に直接渡す。
 
@@ -906,15 +906,21 @@ Root Agent は両方の結果を取得してからまとめ、各指摘の採否
 
 ---
 
-## 22. Plannotator Code Review
+## 22. Code Review provider
 
 両方の自動レビュー結果の取得、Root の採否判断、必要な修正・影響に応じた再検証と必要時の再レビューを終えてから、Root が `taskflow_code_review` を呼ぶ。
 
-Plannotator Code Review は設定で有効・無効を切り替える。
+Code Review は設定で有効・無効とproviderを切り替える。`taskflow.codeReviewProvider` は `"plannotator" | "tuicr"`、未設定はPlannotator。自動fallbackはせず、Plannotator使用時にherdr/tuicrは要求しない。
 
 `taskflow.codeReviewEnabled` のデフォルトは有効とする。明示的に `false` を設定した場合のみ無効にし、provider を起動せず `{ status: "skipped", approved: false }` を返す。
 
-有効な場合は、Plannotator の明示的な Approve が得られるまで完了扱いにしない。Reject は Root の判断・必要な修正・再検証・再提出に戻る。Cancel・失敗・shutdown は承認ではない。Plan Review はこの設定の影響を受けない。
+有効な場合は、選択providerの明示的なユーザーApproveが得られるまで完了扱いにしない。Reject は Root の判断・必要な修正・再検証・再提出に戻る。Cancel・失敗・shutdown は承認ではない。Plan Review はこの設定の影響を受けない。
+
+tuicrは呼び出し元の `HC_TERMINAL_ID` と `herdr-app ls` からlocal space/tab/paneを一意特定し、同spaceの専用新tabとtoolの絶対cwdで `tuicr -w --stdout` を実行する。active tabへのfallback、remote machine、旧herdr、pane分割、手動session接続は対象外。UI/CLI/Git/local条件を副作用前に確認する。
+
+人間に `y` または `:clip` Enterで明示exportするとそのまま終了すること（追加のq不要）を案内する。exportなしは `:q` Enterで退出し、裸のqは終了しない。未保存コメントがあると `:q` は拒否されるが、既存sessionは削除しない。今回専用private tempのstdout Markdownを解析せずfeedbackとして返す。空stdoutは「exportコメント未受領」であり指摘なしとは断定しない。保存session/JSON/clipboardは探索・変更・削除しない。exportやexit 0は承認ではなく、所有tab/Terminal/tempのcleanupと元Pi復帰後の公開Pi select **Approve / Reject / Cancel** のApproveだけが承認となる。
+
+人間待ちに期限は設けず、hc waitのtimeout/messageは待機継続、wait/getのreason/state/signal/exit_codeでkilled/lost/recovered shellを除外する。abort/shutdown/遅延応答/不正JSON/非0/cleanup・復帰失敗は非承認。起動中abortも返却所有IDを回収して限定cleanupし、所有不明なら名前推測で終了せず残存可能性を診断する。他Terminalが専用tabに追加されても巻き添えにしない。独自registry/queue/永続復旧管理は作らない。再利用する直接検証は [Code Review検証Skill](../skills/taskflow-verification/SKILL.md) を使う。
 
 ---
 
@@ -935,12 +941,13 @@ Project
 ```json
 {
   "taskflow": {
-    "codeReviewEnabled": true
+    "codeReviewEnabled": true,
+    "codeReviewProvider": "plannotator"
   }
 }
 ```
 
-現在の独自設定はこの boolean 1項目だけとする。未設定時は `true`。
+独自設定はこの2項目。`codeReviewEnabled` はboolean（未設定true）、`codeReviewProvider` は `"plannotator" | "tuicr"`（未設定plannotator）。無効時も新2項目を検証する。
 
 旧 `plannotatorCodeReview` は値の参照・検証をせず無視する。互換 fallback、自動移行、旧値エラーはない。**旧 `plannotatorCodeReview: false` だけが残っていても Code Review が有効になる破壊的変更**である。無効を維持するには、ユーザーが Pi settings の旧キーを `codeReviewEnabled: false` に手動で変更する。
 
@@ -950,7 +957,7 @@ Work Item の保存先は `taskflow-to-ticket` が準備するプロジェクト
 
 設定取得専用の `taskflow_config` tool は作らない。
 
-設定が必要な処理が Extension 内部で、呼び出しごとに `pi.getSettings()` から Pi の有効な SettingsManager snapshot を取得する。Project による Global の上書きと project trust は Pi に委ね、snapshot は変更しない。`taskflow` namespace が object でない場合や新設定が boolean でない場合は明確な設定エラーとする。
+設定が必要な処理が Extension 内部で、呼び出しごとに `pi.getSettings()` から Pi の有効な SettingsManager snapshot を取得する。Project による Global の上書きと project trust は Pi に委ね、snapshot は変更しない。`taskflow` namespaceがobjectでない場合（null/array含む）、enabledがbooleanでない場合、providerが許可された文字列でない場合は明確な設定エラーとする。未指定/undefinedは既定値。無効時の不正providerも隠さない。
 
 ---
 
@@ -1005,7 +1012,7 @@ Implementation が途中で失敗した場合は、Approved Plan と Work Item �
 8. Reviewer の指摘は Root Agent が判断する。
 9. Plan の変更が必要なら `REPLAN_REQUIRED` とする。
 10. 子 Agent は勝手に merge、release、deploy しない。
-11. Plannotator Code Review が有効な場合はユーザー承認を必須とする。
+11. Code Review が有効な場合は選択providerの明示的なユーザー承認を必須とする。
 12. Lock や共有 State を増やす前に、処理を分けられないか検討する。
 
 ---
