@@ -44,6 +44,32 @@ it("loads the Planning Skill through Pi and resolves all Planning Playbooks", ()
   }
 });
 
+it.each(["planning", "implementation"])(
+  "keeps CodeGraph sync optional and Root-owned in the %s investigation",
+  (phase) => {
+    const content = readFileSync(
+      new URL(`../skills/taskflow-${phase}/SKILL.md`, import.meta.url),
+      "utf8",
+    );
+    const heading =
+      phase === "planning" ? "### コード調査" : "## 3. 現在のコードを確認する";
+    const investigation = content.split(heading)[1].split("\n## ")[0];
+
+    for (const instruction of [
+      "コード調査の開始前に Root Agent が CodeGraph CLI の利用可否を確認する",
+      "CLI が利用可能な場合だけ、対象プロジェクトのルートで `codegraph status`",
+      "初期化済みと確認できた場合だけ `codegraph sync`",
+      "CLI が利用不可・未初期化・状態確認失敗なら同期をスキップする",
+      "同期失敗も含め、その旨を報告し、古いインデックスに頼らず直接コードを確認して続行する",
+      "自動インストール・`codegraph init`・全再構築は行わない",
+      "ファイル保存ごとや子 Agent ごとの同期は要求しない",
+      "編集後の確認は現在のコード・diff・テストで行い",
+    ]) {
+      expect(investigation).toContain(instruction);
+    }
+  },
+);
+
 it("resolves the bundled Implementation Skill for replan resume guidance", () => {
   const dir = fileURLToPath(new URL("../skills/", import.meta.url));
   const { skills, diagnostics } = loadSkillsFromDir({ dir, source: "test" });
