@@ -277,6 +277,24 @@ describe("taskflow_code_review tool", () => {
     expect(receive).toHaveBeenCalledTimes(2);
   });
 
+  it.each([
+    [{ plannotatorCodeReview: false }, "approved"],
+    [{ plannotatorCodeReview: "invalid" }, "approved"],
+    [{ codeReviewEnabled: true, plannotatorCodeReview: false }, "approved"],
+    [{ codeReviewEnabled: false, plannotatorCodeReview: "invalid" }, "skipped"],
+  ])("ignores legacy settings in the tool: %j", async (taskflow, status) => {
+    const events = createEventBus();
+    const receive = provider(events, handled({ approved: true }));
+    const { execute, settingsManager } = await registerTool(events);
+    const settings = { ...reviewSettings(), taskflow };
+    settingsManager.applyOverrides(settings);
+    expect(await execute()).toMatchObject({
+      details: { status, approved: status === "approved" },
+      isError: false,
+    });
+    expect(receive).toHaveBeenCalledTimes(status === "skipped" ? 0 : 2);
+  });
+
   it.each([true, false])(
     "returns enabled Code Review decision and feedback: %s",
     async (approved) => {
@@ -306,10 +324,16 @@ describe("taskflow_code_review tool", () => {
   it("resolves the current effective settings on every invocation", async () => {
     const events = createEventBus();
     const receive = provider(events, handled({ approved: true }));
-    const { execute, settingsManager } = await registerTool(events, false);
+    const { execute, settingsManager, getSettings } = await registerTool(
+      events,
+      false,
+    );
     expect(await execute()).toMatchObject({ details: { status: "skipped" } });
     settingsManager.applyOverrides(reviewSettings(true));
     expect(await execute()).toMatchObject({ details: { status: "approved" } });
+    settingsManager.applyOverrides(reviewSettings(false));
+    expect(await execute()).toMatchObject({ details: { status: "skipped" } });
+    expect(getSettings).toHaveBeenCalledTimes(3);
     expect(receive).toHaveBeenCalledTimes(2);
   });
 
@@ -318,7 +342,7 @@ describe("taskflow_code_review tool", () => {
     const receive = provider(events);
     const { execute } = await registerTool(events, "true");
     await expect(execute()).rejects.toThrow(
-      "Invalid taskflow.plannotatorCodeReview setting: expected a boolean.",
+      "Invalid taskflow.codeReviewEnabled setting: expected a boolean.",
     );
     expect(receive).not.toHaveBeenCalled();
   });

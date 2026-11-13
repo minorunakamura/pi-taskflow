@@ -2,7 +2,7 @@ import { createEventBus, type EventBus } from "@earendil-works/pi-coding-agent";
 import { Check } from "typebox/value";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { reviewPlan } from "../src/plannotator.ts";
-import { readRequest, registerTaskflow } from "./helpers.ts";
+import { readRequest, registerTaskflow, reviewSettings } from "./helpers.ts";
 
 const plan = { planContent: "# Completed Plan", planFilePath: "docs/plan.md" };
 const pending = {
@@ -298,6 +298,25 @@ describe("Plannotator bridge", () => {
 });
 
 describe("taskflow Extension", () => {
+  it("keeps Plan Review enabled when Code Review is disabled", async () => {
+    const events = createEventBus();
+    const receive = provider(events);
+    const { tool, context, settingsManager, getSettings } =
+      await registerTool(events);
+    settingsManager.applyOverrides(reviewSettings(false));
+    const result = tool.execute("call-1", plan, undefined, undefined, context);
+    events.emit("plannotator:review-result", {
+      reviewId: "review-1",
+      approved: true,
+    });
+    expect(await result).toMatchObject({
+      details: { status: "approved", approved: true },
+      isError: false,
+    });
+    expect(receive).toHaveBeenCalledTimes(1);
+    expect(getSettings).not.toHaveBeenCalled();
+  });
+
   it("registers the review tools with the required Plan input schema", async () => {
     const events = createEventBus();
     const receive = provider(events);
