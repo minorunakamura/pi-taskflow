@@ -947,7 +947,7 @@ Project
 }
 ```
 
-独自設定はこの2項目。`codeReviewEnabled` はboolean（未設定true）、`codeReviewProvider` は `"plannotator" | "tuicr"`（未設定plannotator）。無効時も新2項目を検証する。
+独自設定はこの2項目。加えて `plannotatorUi`（`"tui" | "browser"`、未設定tui）はPlan ReviewとPlannotator Code Reviewの表示を切り替え、tuiでは専用herdr-app tabでplannotator-tuiを使う（tuicrと同じtab所有・cleanup処理）。`codeReviewEnabled` はboolean（未設定true）、`codeReviewProvider` は `"plannotator" | "tuicr"`（未設定plannotator）。無効時も新2項目を検証する。
 
 旧 `plannotatorCodeReview` は値の参照・検証をせず無視する。互換 fallback、自動移行、旧値エラーはない。**旧 `plannotatorCodeReview: false` だけが残っていても Code Review が有効になる破壊的変更**である。無効を維持するには、ユーザーが Pi settings の旧キーを `codeReviewEnabled: false` に手動で変更する。
 

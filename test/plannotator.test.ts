@@ -314,7 +314,7 @@ describe("taskflow Extension", () => {
       isError: false,
     });
     expect(receive).toHaveBeenCalledTimes(1);
-    expect(getSettings).not.toHaveBeenCalled();
+    expect(getSettings).toHaveBeenCalledTimes(1);
   });
 
   it("registers the review tools with the required Plan input schema", async () => {

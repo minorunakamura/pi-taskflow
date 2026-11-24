@@ -891,7 +891,7 @@ Project:
 }
 ```
 
-独自設定はこの2項目だけ。`codeReviewProvider` は `"plannotator" | "tuicr"`、未設定/undefined時は `"plannotator"`。Plannotatorを選ぶときherdr/tuicrは不要。
+独自設定はこの2項目だけ。加えて `plannotatorUi`（`"tui" | "browser"`、未設定tui）はPlan ReviewとPlannotator Code Reviewの表示を切り替え、tuiでは専用herdr-app tabでplannotator-tuiを使う（tuicrと同じtab所有・cleanup処理）。`codeReviewProvider` は `"plannotator" | "tuicr"`、未設定/undefined時は `"plannotator"`。Plannotatorを選ぶときherdr/tuicrは不要。
 
 `codeReviewEnabled` のデフォルトは `true`。未設定時も有効とし、明示的に `false` を設定した場合のみ無効にする。
 
