@@ -228,6 +228,7 @@ Oracle を利用する場合は、必要に応じて次も助言の観点に含�
 すべての最終 Plan に対して `taskflow_plan_review` を呼ぶ。小さい依頼や Oracle の賛同でも省略しない。
 完成した Markdown 全文を `planContent` に渡す。保存先を渡す場合は `planFilePath` を使う。
 この tool は Plannotator の `plan-review` に直接提出する。Pi Plan Mode に切り替えない。
+`taskflow.plannotatorUi`（`"tui" | "browser"`、既定 tui）が `"tui"` なら呼び出し元と同じ local herdr-app space の専用 tab で `plannotator-tui --gate` を開く。`A` が Approve、`E` の Send は Reject（feedback 付き）、`q` は dismiss（`cancelled`）。`"browser"` なら従来の Plannotator browser。
 
 - `status: "approved"` かつ `approved: true` の結果、つまりユーザーの明示的な Plannotator Approve だけを承認とする。
 - Reject は返された `feedback` を使って Root Agent が修正する。必要なら調査・ユーザー判断に戻り、修正後の全文を再提出する。

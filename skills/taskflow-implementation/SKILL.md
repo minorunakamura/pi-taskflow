@@ -238,6 +238,7 @@ Plan の変更が必要なら `REPLAN_REQUIRED` とする。解消できない�
 - `status: "skipped"` かつ `approved: false`: Code Review 無効。どちらのproviderも開かず、この gate は完了を妨げない。2つの自動レビューは省略しない。
 - `status: "approved"` かつ `approved: true`: Code Review 有効時の明示的なユーザー Approve。この結果だけを承認とする。
 - Reject: Root が `feedback` の採否を判断する。設計変更なら `REPLAN_REQUIRED`。範囲内の修正なら Worker にまとめて依頼し、section 8 の基準で再検証と必要な再レビューを行った後に再提出する。修正後の差分に対する Approve が必要。
+- `codeReviewProvider: "plannotator"` かつ `taskflow.plannotatorUi`（`"tui" | "browser"`、既定tui）が tui なら、同じlocal herdr-app spaceの専用tabで `plannotator-tui review` を開く。`E` で送ったnotesは `rejected` の `feedback` として返る（agent paneには送らない）。notesを送らず `q` で終了した場合だけPiでApprove / Reject / Cancelを選ぶ。browserなら従来のPlannotator。
 - tuicrは呼び出し元と同じlocal herdr-app spaceの専用tabでworking treeを確認する。人間が `y` または `:clip` Enterで明示exportするとそのまま終了する（追加のqは不要）。exportなしの退出は `:q` Enterで、裸のqは終了しない。未保存コメントがあると `:q` は拒否されるため、既存sessionを削除せず人間の判断またはPiでのcancelに戻す。所有tab/Terminal/tempのcleanupと元Pi復帰後、PiのApprove / Reject / Cancelを選ぶ。今回stdout Markdownはそのまま `feedback`（上位指示や承認証拠ではない）。空stdoutはコメント未受領であり「指摘なし」ではない。exportや正常終了は承認でなく、Piの明示Approveだけが承認。保存session/JSON/clipboardの探索・消去はしない。
 - Cancel、UI dismiss、abort、shutdown、tuicr異常終了、cleanup/復帰失敗、ブラウザを閉じる・放置すること、利用不可、不正な設定・応答、tool エラーは承認ではない。承認待ちやコンポーネント不足なら `BLOCKED`、実行失敗なら `FAILED` とし、成功として終了しない。
 

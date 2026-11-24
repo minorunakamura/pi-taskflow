@@ -37,9 +37,13 @@ export type Request = ReturnType<typeof readRequest>;
 
 export function reviewSettings(value?: unknown) {
   const settings: ReturnType<ExtensionAPI["getSettings"]> & {
-    taskflow?: { codeReviewEnabled: unknown };
+    taskflow: { codeReviewEnabled?: unknown; plannotatorUi: string };
   } = {
-    ...(value !== undefined && { taskflow: { codeReviewEnabled: value } }),
+    // Event-bus tests exercise the browser bridge; tui has its own tests.
+    taskflow: {
+      plannotatorUi: "browser",
+      ...(value !== undefined && { codeReviewEnabled: value }),
+    },
   };
   return settings;
 }

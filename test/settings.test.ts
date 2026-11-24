@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { SettingsManager } from "@earendil-works/pi-coding-agent";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { codeReviewSettings } from "../src/settings.ts";
+import { codeReviewSettings, plannotatorUi } from "../src/settings.ts";
 
 const codeReviewEnabled = (
   settings: Parameters<typeof codeReviewSettings>[0],
@@ -189,7 +189,11 @@ describe("taskflow.codeReviewEnabled through Pi SettingsManager", () => {
 
 describe("taskflow.codeReviewProvider through Pi SettingsManager", () => {
   it("defaults to Plannotator and ignores legacy getters", () => {
-    expect(resolved()).toEqual({ enabled: true, provider: "plannotator" });
+    expect(resolved()).toEqual({
+      enabled: true,
+      provider: "plannotator",
+      plannotatorUi: "tui",
+    });
     const settings = {
       ...SettingsManager.inMemory().getSettings(),
       taskflow: { codeReviewProvider: undefined },
@@ -202,6 +206,7 @@ describe("taskflow.codeReviewProvider through Pi SettingsManager", () => {
     expect(codeReviewSettings(settings)).toEqual({
       enabled: true,
       provider: "plannotator",
+      plannotatorUi: "tui",
     });
   });
   it.each(["plannotator", "tuicr"])(
@@ -219,6 +224,7 @@ describe("taskflow.codeReviewProvider through Pi SettingsManager", () => {
       expect(codeReviewSettings(settings)).toEqual({
         enabled: false,
         provider,
+        plannotatorUi: "tui",
       });
       expect(settings).toEqual(before);
     },
@@ -240,4 +246,24 @@ describe("taskflow.codeReviewProvider through Pi SettingsManager", () => {
       );
     },
   );
+});
+
+describe("taskflow.plannotatorUi through Pi SettingsManager", () => {
+  it.each([
+    [{}, "tui"],
+    [{ taskflow: {} }, "tui"],
+    [{ taskflow: { plannotatorUi: "browser" } }, "browser"],
+    [{ taskflow: { plannotatorUi: "tui", codeReviewProvider: "bad" } }, "tui"],
+  ])("resolves %j to %s", (global, ui) => {
+    configure(global);
+    expect(
+      plannotatorUi(SettingsManager.create(cwd, agentDir).getSettings()),
+    ).toBe(ui);
+  });
+  it.each([true, null, "web"])("rejects %j", (value) => {
+    configure({ taskflow: { plannotatorUi: value } });
+    expect(() => resolved()).toThrow(
+      'Invalid taskflow.plannotatorUi setting: expected "tui" or "browser".',
+    );
+  });
 });
