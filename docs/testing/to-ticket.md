@@ -11,7 +11,7 @@
 - 旧 `to-tickets` / setup Skill、tracker Extension、新依存は不要。global 設定や第三者の導入先・symlink は変更しない。
 - fixture はリポジトリ外に作り、実セッションのログも fixture 外に保管する。テスト用 Plan / ticket を本リポジトリに持ち込まない。
 - GitHub Issue / label / native relation の書き込み許可はない。Local の検証中は GitHub への書き込みを行わない。
-- `--print` に承認回答をまとめたり、Agent が人間の承認を自作したりしない。対話型 TUI またはユーザーが応答できる実 RPC セッションを使う。
+- `--print` に承認回答をまとめたり、Agent が人間の承認を自作したりしない。対話型 TUI を使う。承認は `taskflow_ask` で行い、TUI 以外では `unavailable` になる。
 
 ## 1. 隔離 fixture を2通り用意する
 
@@ -78,13 +78,14 @@ CLI を隔離した一時 cwd で実行し、出力・exit code と profile 内�
 Root を起動する例（利用可能な model を必要に応じて明示する）:
 
 ```sh
+ASK_USER_QUESTION_REPO=/absolute/path/to/pi-ask-user-question
 cd "$SMOKE_DIR"
 pi --no-extensions --no-mcp --no-skills --no-prompt-templates --no-themes \
-  --skill "$TASKFLOW_REPO/skills" --tools read,bash,edit,write \
+  -e "$TASKFLOW_REPO" -e "$ASK_USER_QUESTION_REPO" \
   --session-dir "$SMOKE_LOG_DIR" --verbose
 ```
 
-明示した package の `skills/` のみを使い、startup diagnostics と `/skill:taskflow-to-ticket` が利用可能なことを確認する。外部 setup は呼ばない。AGENTS.md / CLAUDE.md のある試行では context discovery を無効化しない。ログに既存ファイルの参照があっても、tracker は直接読む必要がある。
+明示した package の `skills/` と、承認に使う `taskflow_ask`（`pi-ask-user-question` の UI を使う）のみを使い、startup diagnostics と `/skill:taskflow-to-ticket` が利用可能なことを確認する。外部 setup は呼ばない。AGENTS.md / CLAUDE.md のある試行では context discovery を無効化しない。ログに既存ファイルの参照があっても、tracker は直接読む必要がある。
 正式 Plan 保存後、Pi を終了せず別 terminal で baseline を記録する（git identity と commit signing の override はこのコマンドだけに限定し、global 設定は変更しない）:
 
 ```sh
@@ -105,7 +106,7 @@ git -c user.name=Smoke -c user.email=smoke@example.invalid -c commit.gpgsign=fal
 AGENTS.md / CLAUDE.md、Domain 設定、triage 設定、コードは変更せず、保存後は終了してください。
 ```
 
-次の各段階でユーザーが tool 履歴・ファイルを直接確認する:
+次の各段階でユーザーが tool 履歴・ファイルを直接確認する。設定・分割・保存の各承認は `taskflow_ask` で行われ、本文が `content` に入って tool の呼び出し行に表示された状態で選択 UI が出ること、`question` と選択肢の `label`・`description`・`preview` に本文が入っていないことを各段階で確認する。
 
 1. Root が Skill と対象プロジェクトの `docs/agents/issue-tracker.md` を直接 read し、不存在を確認する。Local 提案の保存先・設定全文を提示して待つ。承認前は設定も ticket もない。
 2. 人間が**設定のみ**を明示承認する。設定の保存・readback があり、不要な AGENTS / CLAUDE / Domain / triage 設定が作られない。`git status --short` で予定外ファイルがないことを確認する。
@@ -149,6 +150,7 @@ shasum -a 256 docs/agents/issue-tracker.md .scratch/saved-greeting/issues/*.md >
 | --- | --- |
 | 設定承認を拒否・取消、または未回答 | 設定・ticket を保存しない |
 | 分割または保存承認を拒否・取消、または未回答 | ticket を保存しない。承認済み設定は保持しても公開には進まない |
+| `taskflow_ask` が `unavailable`（非 TUI、`pi-ask-user-question` 未導入） | 承認とせず停止し、理由と再開条件を報告する。`ask_user_question` や会話での返答で代替しない |
 | 対応外 tracker の既存設定 | 設定を置き換えず、不足と選択肢を示して停止 |
 | remote / repo の曖昧さ、入力と設定の対象不一致 | 推測・自動 fallback せず確認待ち |
 | 未承認 spec / 会話だけ、Plan なし | Approved Plan を偽らず Implementation 未成立と本文・最終回答に明記 |

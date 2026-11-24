@@ -45,7 +45,7 @@ Tool 未導入・非アクティブ・通知失敗・保存未確認・未保存
 | リポジトリ内の事実 | Root Agent のコード確認、または built-in `scout` |
 | 外部の事実 | `pi-subagents` から `pi-ketch.researcher` に委譲 |
 | 小さな実験で分かる事実 | Probe |
-| ユーザーしか決められない仕様・範囲・優先度・方針 | Root で `grilling` + `ask_user_question` |
+| ユーザーしか決められない仕様・範囲・優先度・方針 | Root で `grilling` + `taskflow_ask` |
 
 ### コード調査
 
@@ -92,7 +92,8 @@ researcher package が提供する fresh context、tools、child Extension を�
 ## 3. ユーザー判断を確定する
 
 仕様、範囲、優先度、方針などの未決定事項がある場合だけ、Root Agent が `grilling` Skill を使う。
-各質問は Root セッションの `ask_user_question` で表示し、回答を待つ。Grilling を subagent として起動しない。
+各質問は Root セッションの `taskflow_ask` で表示し、回答を待つ。質問の前提（調査結果、比較、推奨）は `content` に入れ、`question` と選択肢は短くする。Grilling を subagent として起動しない。
+`taskflow_ask` の結果が `status: "answered"` 以外（`unavailable` を含む）なら回答は得られていないので、理由と再開条件を報告して停止し、`ask_user_question` や会話での返答で代替しない。
 確認が必要な事実が途中で見つかったら、コード確認、Scout、外部調査、Probe に戻る。
 ユーザー判断の前提が揃ってから質問し、決まっていない回答を推測で埋めない。
 未決定事項がなければ Grilling は省略する。

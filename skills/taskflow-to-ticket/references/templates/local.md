@@ -1,6 +1,6 @@
 # Local Markdown 設定テンプレート
 
-対象プロジェクトの `docs/agents/issue-tracker.md` が未設定のときだけ、保存先・内容を提示して明示承認後に保存する。既存ファイルの補完・変更では独自記述を維持する。
+対象プロジェクトの `docs/agents/issue-tracker.md` が未設定のときだけ、保存先・内容を `taskflow_ask` の `content` で提示して明示承認後に保存する。既存ファイルの補完・変更では独自記述を維持する。
 
 ```markdown
 # Issue tracker

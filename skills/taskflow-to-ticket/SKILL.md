@@ -22,7 +22,7 @@ Root Agent が手順を実行し、ユーザーとの対話と承認確認を担
 
 - 設定済みなら tracker、対象、作成・取得・依存関係の既存ルールを読み取り、再利用する。十分な設定を毎回更新・再作成・再質問しない。
 - 未設定なら `git remote -v` と既存の管理ルールを読み、GitHub Issues または Local Markdown を提案する。remote だけで公開先を決めず、複数 repo、対象ルート、`owner/repo` が曖昧ならユーザーに確認する。
-- 初回作成、設定不足の補完、保存先変更は、該当テンプレートを読み、保存先と内容（既存なら差分）を提示して**明示承認を待つ**。承認後だけ `docs/agents/issue-tracker.md` に保存し、readback で確認する。既存の独自記述は維持し、ファイル全体をテンプレートで置き換えない。拒否・取消・無応答は保存許可ではない。
+- 初回作成、設定不足の補完、保存先変更は、該当テンプレートを読み、保存先と内容（既存なら差分）を `taskflow_ask` の `content` に入れて提示し、同じ呼び出しで**明示承認を待つ**。承認後だけ `docs/agents/issue-tracker.md` に保存し、readback で確認する。既存の独自記述は維持し、ファイル全体をテンプレートで置き換えない。拒否・取消・無応答は保存許可ではない。
 - GitLab / Linear / Jira 等の対応外設定、入力と設定の対象不一致、解釈不能な独自ルールは、不足と選択肢を報告して停止する。勝手に GitHub / Local に置き換えない。
 
 この設定承認はチケット分割や公開の承認ではない。AGENTS.md / CLAUDE.md、Domain docs・配置設定、`docs/agents/triage-labels.md`、PR / wayfinder 設定は作成・変更しない。第三者の Skill 導入先、symlink、global Pi 設定も変更しない。
@@ -39,7 +39,7 @@ Plan / spec のパス・リンク、既存 Issue の URL / 番号、または会
 2. `gh auth status`（対象 host が別ならその host を指定）で認証を確認する。credential / token をチケットや回答に出さない。
 3. `gh repo view <owner/repo> --json nameWithOwner,url` と必要な Issue の読み取りで、設定した正しい対象への read access を確認する。作成操作も必ず `--repo <owner/repo>` 等で対象を明示する。read 成功を write 権限の保証とはしない。
 4. `docs/agents/triage-labels.md` があれば直接読み、既存の `ready-for-agent` 対応名を尊重する。なければ `ready-for-agent` を使う。対応名が不明なら確認し、triage 設定自体は生成しない。
-5. `gh label list --repo <owner/repo>` の公開オプションで必要なラベルの実在を確認する（一覧の上限・pagination による見落としを避ける）。不足なら必要な**1つだけ**の名前・作成内容を示して別途明示承認を得てから作成し、再読する。他のラベルは作らない。
+5. `gh label list --repo <owner/repo>` の公開オプションで必要なラベルの実在を確認する（一覧の上限・pagination による見落としを避ける）。不足なら必要な**1つだけ**の名前・作成内容を `taskflow_ask` の `content` で示して別途明示承認を得てから作成し、再読する。他のラベルは作らない。
 
 CLI、認証、対象、read access が不足したら理由と再開条件を示して停止する。自動 install、`gh auth login` / 認証変更、Local fallback は行わない。認証・通信・権限エラーを「機能非対応」として隠さない。
 
@@ -72,9 +72,10 @@ Plan なし・未承認の spec / 会話からも分割はできるが、`Approv
 
 ## 4. 分割と保存・公開を別々に承認する
 
-まず番号付きの分割案（各タイトル、成果、完了条件、blocker）を示し、粒度、実際の依存、merge / split の必要性をユーザーに確認する。明示的な**分割承認**を得るまで修正し、変更した案は再承認を得る。
-次に最終本文と依存順、GitHub の `owner/repo`・使用 label / native 関係、または Local の各保存パスを示し、**保存・公開の明示承認**を別途待つ。Plan 承認、設定承認、ラベル作成承認、分割承認を保存・公開承認として流用しない。公開対象・本文を変更したら再確認する。
-保存・公開する最終本文（既存 Issue へ追記するコメントを含む）と保存先・公開先は、`ask_user_question` を呼ぶ前に通常の会話メッセージで提示する。件数、新規作成・既存再利用、通常計画・再計画によって提示方法を変えない。`ask_user_question` には提示済みの内容を保存・公開するかを問う短い質問と選択肢だけを渡し、本文を `question`、選択肢の `label`・`description`・`preview` に入れない。
+まず番号付きの分割案（各タイトル、成果、完了条件、blocker）を `taskflow_ask` の `content` で示し、粒度、実際の依存、merge / split の必要性をユーザーに確認する。明示的な**分割承認**を得るまで修正し、変更した案は再承認を得る。
+次に最終本文と依存順、GitHub の `owner/repo`・使用 label / native 関係、または Local の各保存パスを別の `taskflow_ask` の `content` で示し、**保存・公開の明示承認**を別途待つ。Plan 承認、設定承認、ラベル作成承認、分割承認を保存・公開承認として流用しない。公開対象・本文を変更したら再確認する。
+各承認では、保存・公開する最終本文（既存 Issue へ追記するコメントを含む）と保存先・公開先を含め、本文を `taskflow_ask` の `content` に入れ、同じ呼び出しで質問する。tool が表示したものを正式な提示とする。会話で再掲する必要はない。件数、新規作成・既存再利用、通常計画・再計画によって提示方法を変えない。`questions` には承認するかを問う短い質問と選択肢だけを渡し、本文を `question`、選択肢の `label`・`description`・`preview` に入れない。
+`taskflow_ask` の結果が `status: "answered"` 以外（`unavailable` を含む）なら承認は得られていない。理由と再開条件を報告して停止し、`ask_user_question` への切り替えや会話での返答を承認として扱わない。
 承認前にはチケットファイル、下書きファイル、Issue、native 関係を作らない。拒否・取消・無応答では止まり、設定を承認済みで保存した場合もそれだけで終了する。
 
 ## 5. 承認されたチケットを依存順に保存・公開する
