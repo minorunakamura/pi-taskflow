@@ -284,15 +284,17 @@ Ponytail Extension は Pi で常時有効になっている前提とする。
 
 Planning 中のユーザーへの質問表示に利用する。
 
-`pi-ask-user-question` が Root Pi セッションに登録する、
+Grilling の質問と、`taskflow-to-ticket` の4つの承認（tracker 設定の保存、ラベル作成、分割、保存・公開）は、`pi-taskflow` が登録する
 
 ```text
-ask_user_question
+taskflow_ask
 ```
 
-tool を Grilling から利用する。
+tool で表示する。`taskflow_ask` は本文（`content`）を tool の呼び出し行に表示し、内部で `pi-ask-user-question` の Extension event API を使ってその選択 UI を出す。
 
-Grilling 自体も `ask_user_question` も subagent として実行しない。
+本文を assistant の可視 text に頼ると表示されないことがあるため、本文なしでは質問を出せない tool にした。
+
+Grilling 自体も `taskflow_ask` も subagent として実行しない。
 
 ### 5.6 Matt Pocock Skills
 
@@ -476,7 +478,7 @@ Scout は次の内容を中心に返す。
 
 Grilling は subagent ではない。
 
-ユーザーへの各質問は Root Agent が `ask_user_question` tool を使って表示する。
+ユーザーへの各質問は Root Agent が `taskflow_ask` tool を使い、質問の前提（調査結果、比較、推奨）を `content` に入れて表示する。
 
 Grilling の途中で事実確認が必要になった場合だけ、必要に応じて次へ委譲する。
 

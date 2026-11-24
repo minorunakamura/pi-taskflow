@@ -136,9 +136,11 @@ Worker に `ponytail` Skill を追加しない。
 
 ### 3.5 pi-ask-user-question
 
-Root Pi セッションに登録された `ask_user_question` tool を Grilling から使用する。
+Grilling の質問と `taskflow-to-ticket` の4つの承認（tracker 設定の保存、ラベル作成、分割、保存・公開）は、`taskflow_ask` tool で表示する。`taskflow_ask` は `content` を tool の呼び出し行に全文表示し、内部で `pi-ask-user-question` の request / reply event を使って選択 UI を出す。本文を assistant の可視 text に頼ると表示されないことがあるため、本文なしでは質問を出せない tool にした。
 
-Grilling と `ask_user_question` は subagent ではない。
+`pi-ask-user-question` が未導入、または非 TUI のときは `unavailable` を返し、回答・承認として扱わない。
+
+Grilling と `taskflow_ask` は subagent ではない。
 
 ### 3.6 Matt Pocock Skills
 
@@ -272,11 +274,11 @@ await runs.run("research", {
 
 仕様、範囲、優先度、方針などに未決定事項がある場合は、Root Agent が `grilling` Skill を使う。
 
-ユーザーへの各質問は Root Agent が `ask_user_question` tool を使って表示する。
+ユーザーへの各質問は Root Agent が `taskflow_ask` tool を使って表示する。質問の前提（調査結果、比較、推奨）は `content` に入れる。
 
 Grilling 自体を subagent として起動しない。
 
-`ask_user_question` を child に渡すための Extension 配線も行わない。
+`taskflow_ask` を child に渡すための Extension 配線も行わない。
 
 次のルールを守る。
 
@@ -291,7 +293,7 @@ External fact
 → Probe
 
 ユーザーしか決められないこと
-→ Grilling + ask_user_question
+→ Grilling + taskflow_ask
 ```
 
 Grilling の途中で事実確認が必要になった場合は、その事実確認だけを `scout` または `pi-ketch.researcher` に委譲する。
@@ -918,6 +920,7 @@ Work Item の保存先は `taskflow-to-ticket` が準備するプロジェクト
 ```text
 taskflow_plan_review
 taskflow_code_review
+taskflow_ask
 ```
 
 Extension 自身は次を持たない。
@@ -935,7 +938,7 @@ mission persistence
 
 Grilling の質問も Extension-to-Extension API から直接開始しない。
 
-Grilling は Root Agent が `ask_user_question` tool を呼んで進める。
+Grilling は Root Agent が `taskflow_ask` tool を呼んで進める。
 
 ---
 
@@ -1028,7 +1031,7 @@ Bug Fix
 Refactoring
 Performance
 Grilling を省略できる明確な依頼
-Grilling + ask_user_question
+Grilling + taskflow_ask
 外部調査 + pi-ketch.researcher
 Probe が必要な依頼
 Plannotator Reject → 修正 → Approve

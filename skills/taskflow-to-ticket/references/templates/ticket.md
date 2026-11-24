@@ -1,6 +1,6 @@
 # チケットテンプレート
 
-承認待ちの本文は通常の会話メッセージで提示し、`ask_user_question` 内には入れない。分割と保存・公開の両承認前にファイルや Issue を作らない。Local は下記の見出しを `# <NN>: <title>` にし、GitHub は title を Issue のタイトルに渡す。`Parent` は元 Issue がある場合だけ含める。
+承認待ちの本文は `taskflow_ask` の `content` で提示し、`question` や選択肢には入れない。分割と保存・公開の両承認前にファイルや Issue を作らない。Local は下記の見出しを `# <NN>: <title>` にし、GitHub は title を Issue のタイトルに渡す。`Parent` は元 Issue がある場合だけ含める。
 
 ```markdown
 # <title>
