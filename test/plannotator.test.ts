@@ -317,13 +317,13 @@ describe("taskflow Extension", () => {
     expect(getSettings).toHaveBeenCalledTimes(1);
   });
 
-  it("registers the review tools with the required Plan input schema", async () => {
+  it("registers the review and ask tools with the required Plan input schema", async () => {
     const events = createEventBus();
     const receive = provider(events);
     const { tool, register, context } = await registerTool(events);
     expect(
       register.mock.calls.map(([registeredTool]) => registeredTool.name),
-    ).toEqual(["taskflow_plan_review", "taskflow_code_review"]);
+    ).toEqual(["taskflow_plan_review", "taskflow_code_review", "taskflow_ask"]);
     expect(tool.name).toBe("taskflow_plan_review");
     expect(Check(tool.parameters, plan)).toBe(true);
     expect(Check(tool.parameters, { planContent: plan.planContent })).toBe(

@@ -1,5 +1,18 @@
-import { defineTool, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import {
+  defineTool,
+  type ExtensionAPI,
+  getMarkdownTheme,
+} from "@earendil-works/pi-coding-agent";
+import { Markdown, Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
+import {
+  AskParamsSchema,
+  type AskResult,
+  askMarkdown,
+  askSummary,
+  askUserQuestion,
+  visible,
+} from "../src/ask.ts";
 import {
   reviewCode,
   reviewPlan,
@@ -84,4 +97,70 @@ export default function taskflow(pi: ExtensionAPI) {
       },
     }),
   );
+
+  pi.registerTool(
+    defineTool({
+      name: "taskflow_ask",
+      label: "Taskflow Ask",
+      description:
+        "Show content, then ask questions through pi-ask-user-question in one call. Put the full text to approve or the full premise of the question in content as Markdown; the tool displays it, so it does not need to be repeated in the conversation. Keep question and options short and never put that text in them. Only status answered is an answer; unavailable, user-cancelled, caller-aborted, shutdown and failed are not answers or approval.",
+      parameters: AskParamsSchema,
+      async execute(_toolCallId, params, signal, _onUpdate, ctx) {
+        let result: AskResult;
+        if (ctx.mode !== "tui")
+          result = {
+            status: "unavailable",
+            reason: `taskflow_ask requires the TUI (mode: ${ctx.mode}).`,
+          };
+        else if (
+          !pi.getAllTools().some((tool) => tool.name === "ask_user_question")
+        )
+          result = {
+            status: "unavailable",
+            reason: "pi-ask-user-question is not loaded.",
+          };
+        else
+          result = await askUserQuestion(
+            pi.events,
+            params,
+            signal,
+            shutdown.signal,
+          );
+        return {
+          content: [{ type: "text", text: JSON.stringify(result) }],
+          details: result,
+          isError:
+            result.status === "failed" || result.status === "unavailable",
+        };
+      },
+      renderCall(args) {
+        return markdownOrText(askMarkdown(args));
+      },
+      renderResult(result) {
+        const details = result.details as AskResult | undefined;
+        // Pi's own error results (e.g. invalid arguments) carry empty details and the message in content.
+        const summary =
+          typeof details?.status === "string"
+            ? askSummary(details)
+            : visible(
+                result.content
+                  .map((part) => (part.type === "text" ? part.text : ""))
+                  .join("\n"),
+              );
+        return new Text(summary, 0, 0);
+      },
+    }),
+  );
+}
+
+// Collapsed rows must still show the full content, as Markdown when the theme is available.
+function markdownOrText(markdown: string) {
+  try {
+    const theme = getMarkdownTheme();
+    // The returned styles read Pi's global theme lazily; probe it before rendering.
+    theme.heading("");
+    return new Markdown(markdown, 0, 0, theme);
+  } catch {
+    return new Text(markdown, 0, 0);
+  }
 }
